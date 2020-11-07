@@ -37,6 +37,7 @@ import com.example.youtubemusic.utils.NetworkUtil
 import com.example.youtubemusic.utils.gone
 import com.example.youtubemusic.utils.hide
 import com.example.youtubemusic.utils.show
+import com.google.android.exoplayer2.Player
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.youtubedl_android.mapper.VideoInfo
@@ -253,10 +254,6 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
                     }
 
                     override fun onLoadCleared(placeholder: Drawable?) {
-                        // this is called when imageView is cleared on lifecycle call or for
-                        // some other reason.
-                        // if you are referencing the bitmap somewhere else too other than this imageView
-                        // clear it here as you can no longer have the bitmap
                     }
                 })
         }
@@ -265,6 +262,23 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         if (isRepeat) mediaService?.repeatOne() else mediaService?.noRepeat()
         isPlaying = true
         displayPlayingState()
+        mediaService?.exoPlayer?.addListener(object : Player.EventListener {
+            override fun onPlaybackStateChanged(state: Int) {
+                super.onPlaybackStateChanged(state)
+                when (state) {
+                    Player.STATE_IDLE -> {
+                    }
+                    Player.STATE_BUFFERING -> {
+                    }
+                    Player.STATE_READY -> {
+                    }
+                    Player.STATE_ENDED -> {
+                        isPlaying = false
+                        displayPauseState()
+                    }
+                }
+            }
+        })
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -299,8 +313,18 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         imagePlayAndPause.setOnClickListener {
             if (viewModel.videoInfo.value == null) return@setOnClickListener
             isPlaying = !isPlaying
-            if (isPlaying) displayPlayingState() else displayPauseState()
-            if (isPlaying) mediaService?.play() else mediaService?.pause()
+            if (isPlaying) {
+                displayPlayingState()
+                mediaService?.let {
+                    if (it.exoPlayer.playbackState == Player.STATE_ENDED) {
+                        it.exoPlayer.seekTo(0)
+                    }
+                    it.play()
+                }
+            } else {
+                displayPauseState()
+                mediaService?.pause()
+            }
         }
         imageRepeat.setOnClickListener {
             isRepeat = !isRepeat
@@ -312,14 +336,6 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
                 imageRepeat.setImageResource(R.drawable.exo_controls_repeat_off)
             }
         }
-//        imageDownload.setOnClickListener {
-//            if (mediaService?.audioInfo == null) return@setOnClickListener
-//            if (NetworkUtil.isInternetAvailable(this@MainActivity)) {
-//                viewModel.downloadFile()
-//            } else {
-//                Toast.makeText(this@MainActivity, "No internet!", Toast.LENGTH_SHORT).show()
-//            }
-//        }
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 textProgress.text = getDurationFromMillis(progress.toLong())
