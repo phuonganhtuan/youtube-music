@@ -41,16 +41,9 @@ class MainViewModel(private val videoRepo: VideoRepo) : ViewModel() {
                 thumbnail = it.thumbnails[2].url,
                 url = it.url,
                 description = it.description,
-                duration = it.duration
+                duration = it.duration,
+                scale = it.width / it.height.toFloat()
             )
-            withContext(Dispatchers.IO) {
-                videoRepo.insertRecent(video)
-            }
-        }
-    }
-
-    fun insertRecent(video: Video) = viewModelScope.launch {
-        videoInfo.value?.let {
             withContext(Dispatchers.IO) {
                 videoRepo.insertRecent(video)
             }

@@ -24,6 +24,8 @@ class MediaService : Service() {
 
     var recentVideo: Video? = null
 
+    var scale = 0f
+
     private val notification: Notification
         get() = run {
             val channel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -43,6 +45,14 @@ class MediaService : Service() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 channel?.let(service::createNotificationChannel)
             }
+//            NotificationCompat.Builder(this, "100111")
+//                .setSmallIcon(R.drawable.ic_baseline_music_note_24)
+//                .setContentTitle(audioInfo?.title ?: "No song is being play")
+//                .setContentText(audioInfo?.uploader ?: "Author")
+//                .setContentIntent(pendingIntent)
+//                .setShowWhen(false)
+//                .setOngoing(true)
+//                .build()
             NotificationCompat.Builder(this, "100111")
                 .setSmallIcon(R.drawable.ic_baseline_music_note_24)
                 .setContentTitle(audioInfo?.title ?: "No song is being play")
@@ -51,6 +61,15 @@ class MediaService : Service() {
                 .setShowWhen(false)
                 .setOngoing(true)
                 .build()
+//            notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+//            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+//            .setSmallIcon(R.mipmap.ic_launcher)
+//            .setCustomContentView(notificationLayout)
+//            .build();
+//            NotificationManager notificationManager =
+//            (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+//            notificationManager.notify(1, notification);
+        }
         }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_NOT_STICKY
@@ -85,6 +104,7 @@ class MediaService : Service() {
             exoPlayer.prepare()
             exoPlayer.play()
         }
+        scale = audioInfo!!.width / audioInfo!!.height.toFloat()
     }
 
     fun prepareRecentData() {
@@ -101,6 +121,7 @@ class MediaService : Service() {
             exoPlayer.prepare()
             exoPlayer.play()
         }
+        scale = recentVideo!!.scale
     }
 
     fun seek(progress: Long) {

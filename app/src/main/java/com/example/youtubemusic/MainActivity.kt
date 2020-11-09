@@ -1,10 +1,7 @@
 package com.example.youtubemusic
 
 import android.annotation.SuppressLint
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
+import android.content.*
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PorterDuff
@@ -61,6 +58,9 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
 
     private var defaultUiVisibility = 0
 
+    private var broadcastReceiver: BroadcastReceiver? = null
+    private var isUsingHeadphone = false
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceDisconnected(name: ComponentName?) {
         }
@@ -83,6 +83,7 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         observeData()
         defaultUiVisibility =
             window?.decorView?.systemUiVisibility ?: View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        listenToHeadphoneState()
     }
 
     override fun onStart() {
@@ -103,6 +104,32 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
     override fun onStateChange() {
         isPlaying = mediaService?.exoPlayer?.isPlaying ?: false
         if (isPlaying) displayPlayingState() else displayPauseState()
+    }
+
+    private fun listenToHeadphoneState() {
+        broadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent) {
+                val action = intent.action
+                val iii: Int
+                if (Intent.ACTION_HEADSET_PLUG == action) {
+                    iii = intent.getIntExtra("state", -1)
+                    if (iii == 0) {
+                        if (isUsingHeadphone) {
+                            if (mediaService?.recentVideo == null && mediaService?.audioInfo == null) return
+                            isPlaying = false
+                            displayPauseState()
+                            mediaService?.pause()
+                        }
+                        isUsingHeadphone = false
+                    }
+                    if (iii == 1) {
+                        isUsingHeadphone = true
+                    }
+                }
+            }
+        }
+        val receiverFilter = IntentFilter(Intent.ACTION_HEADSET_PLUG)
+        registerReceiver(broadcastReceiver, receiverFilter)
     }
 
     private fun setupViews() = with(viewBinding) {

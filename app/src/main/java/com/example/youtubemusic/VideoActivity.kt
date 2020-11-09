@@ -31,7 +31,8 @@ class VideoActivity : BottomSheetDialogFragment() {
         viewBinding = ActivityVideoBinding.inflate(inflater)
         dialog?.window?.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        )
         return viewBinding.root
     }
 
@@ -64,6 +65,23 @@ class VideoActivity : BottomSheetDialogFragment() {
         super.onStart()
         val sheetContainer = requireView().parent as? ViewGroup ?: return
         sheetContainer.layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+        service?.let {
+            if (it.scale > 1) {
+                val params = viewBinding.videoView.layoutParams
+                val screenMetrics = activity?.resources?.displayMetrics
+                screenMetrics?.let { metrics ->
+                    val height = metrics.heightPixels
+                    val width = metrics.widthPixels
+                    params.apply {
+                        this.height = width
+                        this.width = height
+                    }
+                    viewBinding.videoView.layoutParams = params
+                }
+            } else {
+                viewBinding.videoView.rotation = 0f
+            }
+        }
     }
 
     interface OnVideoStateChange {
