@@ -42,7 +42,8 @@ class MainViewModel(private val videoRepo: VideoRepo) : ViewModel() {
                 url = it.url,
                 description = it.description,
                 duration = it.duration,
-                scale = it.width / it.height.toFloat()
+                scale = it.width / it.height.toFloat(),
+                author = it.uploader
             )
             withContext(Dispatchers.IO) {
                 videoRepo.insertRecent(video)

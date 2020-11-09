@@ -19,5 +19,7 @@ data class Video(
     @ColumnInfo(name = "duration")
     var duration: Int = 0,
     @ColumnInfo(name = "scale")
-    var scale: Float = 0f
+    var scale: Float = 0f,
+    @ColumnInfo(name = "author")
+    var author: String = ""
 )
