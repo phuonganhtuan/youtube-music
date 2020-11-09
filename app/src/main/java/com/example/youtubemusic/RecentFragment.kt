@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.example.youtubemusic.data.AppDatabase
+import com.example.youtubemusic.data.Video
 import com.example.youtubemusic.data.VideoRepoImp
 import com.example.youtubemusic.databinding.FragmentListBinding
 
@@ -19,7 +20,9 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick {
 
     private val viewModel by lazy { RecentViewModel(videoRepo) }
 
-    private var onRecentClickListener: ((String) -> Unit)? = null
+    private var onRecentClickListener: ((Video) -> Unit)? = null
+
+    private var resetPosition = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,31 +40,35 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick {
         handleEvents()
     }
 
-    override fun onNewVideoAdded() {
+    override fun onNewVideoAdded(isReset: Boolean) {
+        resetPosition = isReset
         viewModel.getAllRecent()
     }
 
     override fun onVideoColorChange(color: Int) {
         viewBinding.textTitle.setTextColor(color)
         adapter.color = color
-        adapter.list = emptyList()
-        adapter.notifyDataSetChanged()
-        adapter.list = viewModel.recent.value ?: return
         adapter.notifyDataSetChanged()
     }
 
-    override fun onRecentClick(id: String) {
-        onRecentClickListener?.let { it(id) }
+    override fun onRecentDelete(position: Int) {
+        viewModel.deleteRecent(position)
+    }
+
+    override fun onRecentClick(item: Video) {
+        onRecentClickListener?.let { it(item) }
     }
 
     private fun setupViews() = with(viewBinding) {
         recyclerList.adapter = adapter
+        layoutRecentRefresh.isEnabled = false
         viewModel.getAllRecent()
     }
 
     private fun observeData() = with(viewModel) {
         recent.observe(viewLifecycleOwner, {
-            adapter.list = it
+            adapter.list = it.toMutableList()
+            if (resetPosition) adapter.currentPlayingPosition = 0
             adapter.notifyDataSetChanged()
             viewBinding.layoutRecentRefresh.isRefreshing = false
             viewBinding.textTitle.text = "Recent(${it.size})"
@@ -70,12 +77,13 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick {
 
     private fun handleEvents() = with(viewBinding) {
         layoutRecentRefresh.setOnRefreshListener {
+            resetPosition = false
             viewModel.getAllRecent()
         }
     }
 
     companion object {
-        fun newInstance(onRecentClick: (String) -> Unit) = RecentFragment().apply {
+        fun newInstance(onRecentClick: (Video) -> Unit) = RecentFragment().apply {
             this.onRecentClickListener = onRecentClick
         }
     }

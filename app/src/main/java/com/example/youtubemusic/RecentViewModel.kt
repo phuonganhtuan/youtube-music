@@ -18,4 +18,11 @@ class RecentViewModel(private val videoRepo: VideoRepo) : ViewModel() {
             recent.postValue(videoRepo.getRecent().reversed())
         }
     }
+
+    fun deleteRecent(position: Int) = viewModelScope.launch {
+        withContext(Dispatchers.IO) {
+            val item = recent.value!![position]
+            videoRepo.deleteRecent(item.id)
+        }
+    }
 }

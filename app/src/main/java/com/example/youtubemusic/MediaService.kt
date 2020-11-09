@@ -3,12 +3,12 @@ package com.example.youtubemusic
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.example.youtubemusic.data.Video
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.SimpleExoPlayer
@@ -21,6 +21,8 @@ class MediaService : Service() {
     val exoPlayer by lazy { SimpleExoPlayer.Builder(applicationContext).build() }
 
     var audioInfo: VideoInfo? = null
+
+    var recentVideo: Video? = null
 
     private val notification: Notification
         get() = run {
@@ -54,14 +56,14 @@ class MediaService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_NOT_STICKY
 
     override fun onCreate() {
+        super.onCreate()
         startForeground(
             100111,
             notification
         )
-        super.onCreate()
     }
 
-    override fun onBind(intent: Intent): IBinder {
+    override fun onBind(intent: Intent): IBinder? {
         return serviceBinder
     }
 
@@ -70,6 +72,7 @@ class MediaService : Service() {
     }
 
     fun prepareNewDataNew() {
+        recentVideo = null
         startForeground(
             100111,
             notification
@@ -78,6 +81,22 @@ class MediaService : Service() {
             exoPlayer.stop()
         }
         audioInfo?.let {
+            exoPlayer.setMediaItem(MediaItem.fromUri(Uri.parse(it.url)))
+            exoPlayer.prepare()
+            exoPlayer.play()
+        }
+    }
+
+    fun prepareRecentData() {
+        audioInfo = null
+        startForeground(
+            100111,
+            notification
+        )
+        if (exoPlayer.isPlaying) {
+            exoPlayer.stop()
+        }
+        recentVideo?.let {
             exoPlayer.setMediaItem(MediaItem.fromUri(Uri.parse(it.url)))
             exoPlayer.prepare()
             exoPlayer.play()

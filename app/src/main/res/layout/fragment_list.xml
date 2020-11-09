@@ -29,7 +29,8 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_marginStart="24dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="24dp"
             app:cardBackgroundColor="@android:color/transparent"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
@@ -45,12 +46,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:overScrollMode="never"
-                android:paddingBottom="350dp"
-                android:scrollbars="vertical"
+                android:paddingBottom="172dp"
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                 tools:itemCount="12"
-                tools:listitem="@layout/item_video" />
+                tools:listitem="@layout/item_swipeable_video" />
         </androidx.cardview.widget.CardView>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

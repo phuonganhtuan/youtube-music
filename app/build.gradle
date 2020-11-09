@@ -74,7 +74,7 @@ dependencies {
     implementation 'jp.wasabeef:glide-transformations:4.3.0'
     implementation 'com.github.yausername.youtubedl-android:library:0.12.2'
     implementation 'androidx.palette:palette-ktx:1.0.0'
-
+    implementation 'com.chauthai.swipereveallayout:swipe-reveal-layout:1.4.1'
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'

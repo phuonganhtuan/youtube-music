@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.drawable.ColorDrawable
@@ -17,13 +16,11 @@ import android.os.IBinder
 import android.os.Looper
 import android.view.MotionEvent
 import android.view.View
-import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.view.animation.AnimationUtils
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.constraintlayout.motion.widget.MotionLayout
 import androidx.core.content.ContextCompat
 import androidx.palette.graphics.Palette
 import com.bumptech.glide.Glide
@@ -31,15 +28,14 @@ import com.bumptech.glide.request.RequestOptions.bitmapTransform
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.example.youtubemusic.data.AppDatabase
+import com.example.youtubemusic.data.Video
 import com.example.youtubemusic.data.VideoRepoImp
 import com.example.youtubemusic.databinding.ActivityMainBinding
 import com.example.youtubemusic.utils.NetworkUtil
 import com.example.youtubemusic.utils.gone
-import com.example.youtubemusic.utils.hide
 import com.example.youtubemusic.utils.show
 import com.google.android.exoplayer2.Player
 import com.yausername.youtubedl_android.YoutubeDL
-import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.youtubedl_android.mapper.VideoInfo
 import jp.wasabeef.glide.transformations.BlurTransformation
 import java.util.concurrent.TimeUnit
@@ -53,13 +49,10 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
     private var isPlaying = false
 
     private val videoRepo by lazy { VideoRepoImp(AppDatabase.invoke(this).videoDao()) }
-
     private val viewModel by lazy { MainViewModel(videoRepo) }
 
     private var mediaService: MediaService? = null
-
     private var handler = Handler(Looper.getMainLooper())
-
     private var runnable: Runnable? = null
 
     private var listener: OnNewVideoPlay? = null
@@ -95,7 +88,7 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
     override fun onStart() {
         super.onStart()
         mediaService?.let {
-            if (it.audioInfo == null) return
+            if (it.audioInfo == null && it.recentVideo == null) return
             viewBinding.seekBar.max = it.getDuration().toInt()
             viewBinding.seekBar.progress = it.getCurrentProgress().toInt()
             updateSeekBar()
@@ -132,10 +125,10 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         runnable = object : Runnable {
             override fun run() {
                 viewBinding.seekBar.progress = mediaService?.getCurrentProgress()?.toInt() ?: 0
-                handler.postDelayed(this, 100L)
+                handler.postDelayed(this, 1000L)
             }
         }
-        runnable?.let { handler.postDelayed(it, 100L) }
+        runnable?.let { handler.postDelayed(it, 1000L) }
     }
 
     private fun disableSeekBarUpdate() {
@@ -200,12 +193,12 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
             textDuration.show()
             seekBar.max = duration.toInt()
             seekBar.progress = 0
-            textProgress.text = "00:00"
+            textProgress.text = getString(R.string.title_zero_progress)
             textDuration.text = getDurationFromMillis(duration)
             progressBar.gone()
             viewModel.insertRecentNew()
             editLink.text = null
-            listener?.onNewVideoAdded()
+            listener?.onNewVideoAdded(true)
             Glide.with(this@MainActivity)
                 .asBitmap()
                 .load(videoInfo.thumbnails[0].url)
@@ -279,6 +272,106 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
                 }
             }
         })
+
+    }
+
+    private fun setAudioDataRecent(video: Video) {
+        viewBinding.apply {
+            textTitle.text = video.title
+            val thumbnail = video.thumbnail
+            Glide.with(this@MainActivity)
+                .load(thumbnail)
+                .into(imageAvatar)
+            Glide.with(this@MainActivity)
+                .load(thumbnail)
+                .apply(bitmapTransform(BlurTransformation(100, 3)))
+                .into(imageBg)
+            val duration = video.duration * 1000L
+            textLyrics.text = video.description
+            seekBar.show()
+            textProgress.show()
+            textDuration.show()
+            seekBar.max = duration.toInt()
+            seekBar.progress = 0
+            textProgress.text = getString(R.string.title_zero_progress)
+            textDuration.text = getDurationFromMillis(duration)
+            progressBar.gone()
+            viewModel.insertRecentNew()
+            editLink.text = null
+            Glide.with(this@MainActivity)
+                .asBitmap()
+                .load(thumbnail)
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(
+                        resource: Bitmap,
+                        transition: Transition<in Bitmap>?
+                    ) {
+                        Palette.Builder(resource).generate {
+                            it?.let { palette ->
+                                val dominantColor = palette.getDominantColor(
+                                    ContextCompat.getColor(
+                                        this@MainActivity,
+                                        R.color.pink
+                                    )
+                                )
+                                layoutDes.background = ColorDrawable(dominantColor)
+                                progressBar.indeterminateDrawable.setColorFilter(
+                                    dominantColor,
+                                    PorterDuff.Mode.SRC_ATOP
+                                )
+                                seekBar.progressDrawable.setColorFilter(
+                                    dominantColor,
+                                    PorterDuff.Mode.SRC_ATOP
+                                )
+                                val red = Color.red(dominantColor)
+                                val green = Color.green(dominantColor)
+                                val blue = Color.blue(dominantColor)
+                                var textColor = 0
+                                if ((red * 0.299 + green * 0.587 + blue * 0.114) > 186) {
+                                    textColor = Color.BLACK
+                                    window?.decorView?.systemUiVisibility =
+                                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                                } else {
+                                    textColor = Color.WHITE
+                                    window?.decorView?.systemUiVisibility = defaultUiVisibility
+                                }
+                                textLyrics.setTextColor(textColor)
+                                imageMore.setColorFilter(
+                                    textColor,
+                                    PorterDuff.Mode.SRC_ATOP
+                                )
+                                listener?.onVideoColorChange(textColor)
+                            }
+                        }
+                    }
+
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                    }
+                })
+            viewBinding.progressBar.gone()
+        }
+        mediaService?.recentVideo = video
+        mediaService?.prepareRecentData()
+        if (isRepeat) mediaService?.repeatOne() else mediaService?.noRepeat()
+        isPlaying = true
+        displayPlayingState()
+        mediaService?.exoPlayer?.addListener(object : Player.EventListener {
+            override fun onPlaybackStateChanged(state: Int) {
+                super.onPlaybackStateChanged(state)
+                when (state) {
+                    Player.STATE_IDLE -> {
+                    }
+                    Player.STATE_BUFFERING -> {
+                    }
+                    Player.STATE_READY -> {
+                    }
+                    Player.STATE_ENDED -> {
+                        isPlaying = false
+                        displayPauseState()
+                    }
+                }
+            }
+        })
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -307,11 +400,15 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
                 viewBinding.editLink.clearFocus()
                 viewModel.getAudioData(editLink.text.toString())
             } else {
-                Toast.makeText(this@MainActivity, "No internet!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.title_no_internet),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
         imagePlayAndPause.setOnClickListener {
-            if (viewModel.videoInfo.value == null) return@setOnClickListener
+            if (mediaService?.recentVideo == null && mediaService?.audioInfo == null) return@setOnClickListener
             isPlaying = !isPlaying
             if (isPlaying) {
                 displayPlayingState()
@@ -349,7 +446,7 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
             }
         })
         imageVideo.setOnClickListener {
-            if (viewModel.videoInfo.value == null) return@setOnClickListener
+            if (mediaService?.recentVideo == null && mediaService?.audioInfo == null) return@setOnClickListener
             VideoActivity.newInstance(mediaService, this@MainActivity)
                 .show(supportFragmentManager, VideoActivity::class.java.simpleName)
         }
@@ -395,12 +492,18 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         window?.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
     }
 
-    private fun openRecent(id: String) {
+    private fun openRecent(item: Video) {
         if (NetworkUtil.isInternetAvailable(this)) {
             viewBinding.progressBar.show()
-            viewModel.getAudioData(id)
+            if (item.url == "") {
+                viewModel.getAudioData(item.id)
+            } else {
+                viewBinding.progressBar.show()
+                setAudioDataRecent(item)
+//                viewModel.insertRecent(item)
+            }
         } else {
-            Toast.makeText(this, "No internet!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.title_no_internet), Toast.LENGTH_SHORT).show()
         }
     }
 }

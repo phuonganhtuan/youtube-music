@@ -11,5 +11,11 @@ data class Video(
     @ColumnInfo(name = "thumbnail")
     var thumbnail: String = "",
     @ColumnInfo(name = "title")
-    var title: String = ""
+    var title: String = "",
+    @ColumnInfo(name = "url")
+    var url: String = "",
+    @ColumnInfo(name = "description")
+    var description: String = "",
+    @ColumnInfo(name = "duration")
+    var duration: Int = 0
 )
