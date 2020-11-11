@@ -1,4 +1,4 @@
-package com.example.youtubemusic
+package com.example.youtubemusic.ui.main
 
 import android.app.*
 import android.content.BroadcastReceiver
@@ -17,7 +17,9 @@ import androidx.core.app.NotificationCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.example.youtubemusic.data.Video
+import com.example.youtubemusic.R
+import com.example.youtubemusic.data.entity.Video
+import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.SimpleExoPlayer
@@ -188,30 +190,86 @@ class MediaService : Service() {
         }
     }
 
-    fun prepareNewDataNew() {
-        recentVideo = null
+    var isPreparing = false
+
+    fun prepareRecentData(list: List<Video>) {
+        audioInfo = null
+        if (exoPlayer.isPlaying) {
+            exoPlayer.stop()
+        }
+        isPreparing = true
+        exoPlayer.clearMediaItems()
+        recentVideo?.let {
+            val index = list.indexOf(it)
+            val items = list.map { video ->
+                MediaItem.fromUri(Uri.parse(video.url))
+            }
+            exoPlayer.setMediaItems(items)
+            exoPlayer.seekTo(index, C.TIME_UNSET)
+            isPreparing = false
+            exoPlayer.prepare()
+            exoPlayer.play()
+        }
+        scale = recentVideo!!.scale
+    }
+
+    fun setupNewNotification(video: Video) {
         Glide.with(this)
             .asBitmap()
-            .load(audioInfo!!.thumbnails[2].url)
+            .load(video.thumbnail)
             .into(object : CustomTarget<Bitmap>() {
                 override fun onResourceReady(
                     resource: Bitmap,
                     transition: Transition<in Bitmap>?
                 ) {
-                    newBitmap = resource
+                    val channel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        NotificationChannel(
+                            "100111",
+                            "Media Service ", NotificationManager.IMPORTANCE_NONE
+                        )
+                    } else null
+                    val intentOpenApp = Intent(this@MediaService, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    }
+                    val pendingIntent = PendingIntent.getActivity(
+                        this@MediaService.applicationContext, 23425, intentOpenApp,
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                    )
+                    val service =
+                        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        channel?.let(service::createNotificationChannel)
+                    }
+                    val notificationLayout =
+                        RemoteViews(
+                            applicationContext.packageName,
+                            R.layout.item_notification_collapsed
+                        )
+                    notificationLayout.apply {
+                        setTextViewText(
+                            R.id.textSongTitle,
+                            video.title
+                        )
+                        setTextViewText(R.id.textAuthor, video.author)
+                        setImageViewBitmap(R.id.imageThumb, resource)
+                        setOnClickPendingIntent(
+                            R.id.imageAction,
+                            onButtonNotificationClick(R.id.imageAction)
+                        )
+                    }
+
+                    val noti = NotificationCompat.Builder(this@MediaService, "100111")
+                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                        .setSmallIcon(R.drawable.ic_baseline_music_note_24)
+                        .setCustomContentView(notificationLayout)
+                        .setContentIntent(pendingIntent)
+                        .setShowWhen(false)
+                        .setOngoing(true)
+                        .build()
                     startForeground(
                         100111,
-                        newNotification
+                        noti
                     )
-                    if (exoPlayer.isPlaying) {
-                        exoPlayer.stop()
-                    }
-                    audioInfo?.let {
-                        exoPlayer.setMediaItem(MediaItem.fromUri(Uri.parse(it.url)))
-                        exoPlayer.prepare()
-                        exoPlayer.play()
-                    }
-                    scale = audioInfo!!.width / audioInfo!!.height.toFloat()
                 }
 
                 override fun onLoadCleared(placeholder: Drawable?) {
@@ -219,35 +277,15 @@ class MediaService : Service() {
             })
     }
 
-    fun prepareRecentData() {
+    fun resetPlayer() {
         audioInfo = null
-        Glide.with(this)
-            .asBitmap()
-            .load(recentVideo!!.thumbnail)
-            .into(object : CustomTarget<Bitmap>() {
-                override fun onResourceReady(
-                    resource: Bitmap,
-                    transition: Transition<in Bitmap>?
-                ) {
-                    recentBitmap = resource
-                    startForeground(
-                        100111,
-                        recentNotification
-                    )
-                    if (exoPlayer.isPlaying) {
-                        exoPlayer.stop()
-                    }
-                    recentVideo?.let {
-                        exoPlayer.setMediaItem(MediaItem.fromUri(Uri.parse(it.url)))
-                        exoPlayer.prepare()
-                        exoPlayer.play()
-                    }
-                    scale = recentVideo!!.scale
-                }
-
-                override fun onLoadCleared(placeholder: Drawable?) {
-                }
-            })
+        recentVideo = null
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        startForeground(
+            100111,
+            notification
+        )
     }
 
     fun seek(progress: Long) {

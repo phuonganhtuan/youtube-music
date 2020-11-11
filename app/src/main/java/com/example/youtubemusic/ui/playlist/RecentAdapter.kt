@@ -1,4 +1,4 @@
-package com.example.youtubemusic
+package com.example.youtubemusic.ui.playlist
 
 import android.graphics.Color
 import android.graphics.PorterDuff
@@ -7,7 +7,8 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.chauthai.swipereveallayout.ViewBinderHelper
-import com.example.youtubemusic.data.Video
+import com.example.youtubemusic.R
+import com.example.youtubemusic.data.entity.Video
 import com.example.youtubemusic.databinding.ItemSwipeableVideoBinding
 import com.example.youtubemusic.utils.gone
 import com.example.youtubemusic.utils.show
@@ -24,7 +25,9 @@ class RecentAdapter(private val onRecentClick: OnRecentClick?) :
 
     override fun getItemCount() = list.size
 
-    var currentPlayingPosition = 0
+    var currentPlayingPosition = -1
+
+    var isCurrentPL = false
 
     override fun onBindViewHolder(holder: RecentVH, position: Int) {
         viewBinderHelper.setOpenOnlyOne(true)
@@ -32,7 +35,7 @@ class RecentAdapter(private val onRecentClick: OnRecentClick?) :
             holder.itemView.findViewById(R.id.swipeLayout), list[position].id
         )
         viewBinderHelper.closeLayout(list[position].id)
-        holder.bind(list[position], color, currentPlayingPosition)
+        holder.bind(list[position], color, currentPlayingPosition, isCurrentPL)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecentVH {
@@ -51,8 +54,6 @@ class RecentAdapter(private val onRecentClick: OnRecentClick?) :
     }
 
     private fun onItemRecentClick(position: Int) {
-        currentPlayingPosition = position
-        notifyDataSetChanged()
         onRecentClick?.onRecentClick(list[position])
     }
 
@@ -72,18 +73,24 @@ class RecentAdapter(private val onRecentClick: OnRecentClick?) :
             }
         }
 
-        fun bind(itemData: Video, color: Int, position: Int) = with(itemViewBinding) {
-            Glide.with(itemView.context)
-                .load(itemData.thumbnail)
-                .into(imageThumbnail)
-            textTitle.text = itemData.title
-            textTitle.setTextColor(color)
-            if (position == adapterPosition) viewBg.show() else viewBg.gone()
-            imageDelete.setColorFilter(
-                color,
-                PorterDuff.Mode.SRC_ATOP
-            )
-        }
+        fun bind(itemData: Video, color: Int, currentPos: Int, flag: Boolean) =
+            with(itemViewBinding) {
+                Glide.with(itemView.context)
+                    .load(itemData.thumbnail)
+                    .into(imageThumbnail)
+                textTitle.text = itemData.title
+                textTitle.setTextColor(color)
+                if (flag && currentPos == adapterPosition) {
+                    if (color == Color.WHITE) viewBgLight.show() else viewBg.show()
+                } else {
+                    viewBg.gone()
+                    viewBgLight.gone()
+                }
+                imageDelete.setColorFilter(
+                    color,
+                    PorterDuff.Mode.SRC_ATOP
+                )
+            }
     }
 
     interface OnRecentClick {

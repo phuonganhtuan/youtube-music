@@ -1,4 +1,4 @@
-package com.example.youtubemusic
+package com.example.youtubemusic.ui.main
 
 import android.annotation.SuppressLint
 import android.content.*
@@ -24,29 +24,44 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions.bitmapTransform
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.example.youtubemusic.data.AppDatabase
-import com.example.youtubemusic.data.Video
-import com.example.youtubemusic.data.VideoRepoImp
+import com.example.youtubemusic.*
+import com.example.youtubemusic.data.db.AppDatabase
+import com.example.youtubemusic.data.entity.Video
+import com.example.youtubemusic.data.repo.PlayListRepoImp
+import com.example.youtubemusic.data.repo.VideoRepoImp
 import com.example.youtubemusic.databinding.ActivityMainBinding
+import com.example.youtubemusic.ui.createpl.CreatePLFragment
+import com.example.youtubemusic.ui.playlist.RecentFragment
 import com.example.youtubemusic.utils.NetworkUtil
 import com.example.youtubemusic.utils.gone
 import com.example.youtubemusic.utils.show
+import com.google.android.exoplayer2.ExoPlaybackException
+import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.source.TrackGroupArray
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray
 import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLOptions
 import com.yausername.youtubedl_android.mapper.VideoInfo
 import jp.wasabeef.glide.transformations.BlurTransformation
 import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 
-class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
+class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
+    CreatePLFragment.OnPLCreate {
 
     private lateinit var viewBinding: ActivityMainBinding
 
     private var isPlaying = false
 
     private val videoRepo by lazy { VideoRepoImp(AppDatabase.invoke(this).videoDao()) }
-    private val viewModel by lazy { MainViewModel(videoRepo) }
+    private val playListRepo by lazy {
+        PlayListRepoImp(
+            AppDatabase.invoke(this).playListDao()
+        )
+    }
+    private val viewModel by lazy { MainViewModel(videoRepo, playListRepo) }
 
     private var mediaService: MediaService? = null
     private var handler = Handler(Looper.getMainLooper())
@@ -55,6 +70,8 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
     private var listener: OnNewVideoPlay? = null
 
     private var isRepeat = false
+
+    private var isRepeatAll = false
 
     private var defaultUiVisibility = 0
 
@@ -68,6 +85,42 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? MediaService.LocalBinder
             mediaService = binder?.service
+            mediaService?.exoPlayer?.addListener(object : Player.EventListener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    super.onPlaybackStateChanged(state)
+                    when (state) {
+                        Player.STATE_IDLE -> {
+                        }
+                        Player.STATE_BUFFERING -> {
+                        }
+                        Player.STATE_READY -> {
+                        }
+                        Player.STATE_ENDED -> {
+                            isPlaying = false
+                            displayPauseState()
+                        }
+                    }
+                }
+
+                override fun onTracksChanged(
+                    trackGroups: TrackGroupArray,
+                    trackSelections: TrackSelectionArray
+                ) {
+                    super.onTracksChanged(trackGroups, trackSelections)
+                    if (mediaService!!.audioInfo == null && mediaService!!.recentVideo == null) return
+                    if (mediaService!!.isPreparing) return
+                    val pos = mediaService?.exoPlayer?.currentWindowIndex ?: 0
+                    val newVideo = currentList[pos]
+                    setupNewVideoViews(newVideo)
+                    listener?.onNewTrackPlay(pos)
+                }
+
+                override fun onPlayerError(error: ExoPlaybackException) {
+                    super.onPlayerError(error)
+                    Toast.makeText(this@MainActivity, error.message, Toast.LENGTH_SHORT).show()
+                    viewBinding.progressBar.gone()
+                }
+            })
         }
     }
 
@@ -84,6 +137,7 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         defaultUiVisibility =
             window?.decorView?.systemUiVisibility ?: View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         listenToHeadphoneState()
+        cacheDir.deleteRecursively()
     }
 
     override fun onStart() {
@@ -104,6 +158,12 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
     override fun onStateChange() {
         isPlaying = mediaService?.exoPlayer?.isPlaying ?: false
         if (isPlaying) displayPlayingState() else displayPauseState()
+    }
+
+    override fun onPLCreate(title: String) {
+        viewModel.insertPL(title)
+        Toast.makeText(this, "$title created", Toast.LENGTH_SHORT).show()
+        listener?.onPLCreated()
     }
 
     private fun listenToHeadphoneState() {
@@ -141,11 +201,46 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
             .load(R.drawable.bg_2)
             .apply(bitmapTransform(BlurTransformation(100, 3)))
             .into(imageBg)
-        val fragment = RecentFragment.newInstance(::openRecent)
+        val fragment = RecentFragment.newInstance(::openRecent, ::handleTabChange, ::onStopPlaying)
         listener = fragment
         supportFragmentManager.beginTransaction()
             .replace(R.id.frameContent, fragment)
             .commit()
+    }
+
+    private fun onStopPlaying() {
+        isPlaying = false
+        disableSeekBarUpdate()
+        displayPauseState()
+        viewBinding.apply {
+            textTitle.text = "Song title"
+            textLyrics.text = ""
+            layoutDes.background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_black)
+            imageAvatar.setImageDrawable(null)
+            progressBar.gone()
+            seekBar.gone()
+            textProgress.gone()
+            textDuration.gone()
+            Glide.with(this@MainActivity)
+                .load(R.drawable.bg_2)
+                .apply(bitmapTransform(BlurTransformation(100, 3)))
+                .into(imageBg)
+            progressBar.indeterminateDrawable.setColorFilter(
+                getColor(R.color.pink),
+                PorterDuff.Mode.SRC_ATOP
+            )
+            seekBar.progressDrawable.setColorFilter(
+                getColor(R.color.pink),
+                PorterDuff.Mode.SRC_ATOP
+            )
+            window?.decorView?.systemUiVisibility = defaultUiVisibility
+            imageCreatePL.setColorFilter(
+                Color.WHITE,
+                PorterDuff.Mode.SRC_ATOP
+            )
+        }
+        listener?.onVideoColorChange(Color.WHITE)
+        mediaService?.resetPlayer()
     }
 
     private fun updateSeekBar() {
@@ -203,106 +298,21 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
     }
 
     private fun setAudioDataNew(videoInfo: VideoInfo) {
-        viewBinding.apply {
-            textTitle.text = videoInfo.fulltitle
-            val thumbnail = videoInfo.thumbnails[2]
-            Glide.with(this@MainActivity)
-                .load(thumbnail.url)
-                .into(imageAvatar)
-            Glide.with(this@MainActivity)
-                .load(thumbnail.url)
-                .apply(bitmapTransform(BlurTransformation(100, 3)))
-                .into(imageBg)
-            val duration = videoInfo.duration * 1000L
-            textLyrics.text = videoInfo.description
-            seekBar.show()
-            textProgress.show()
-            textDuration.show()
-            seekBar.max = duration.toInt()
-            seekBar.progress = 0
-            textProgress.text = getString(R.string.title_zero_progress)
-            textDuration.text = getDurationFromMillis(duration)
-            progressBar.gone()
-            viewModel.insertRecentNew()
-            editLink.text = null
-            listener?.onNewVideoAdded(true)
-            Glide.with(this@MainActivity)
-                .asBitmap()
-                .load(videoInfo.thumbnails[0].url)
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(
-                        resource: Bitmap,
-                        transition: Transition<in Bitmap>?
-                    ) {
-                        Palette.Builder(resource).generate {
-                            it?.let { palette ->
-                                val dominantColor = palette.getDominantColor(
-                                    ContextCompat.getColor(
-                                        this@MainActivity,
-                                        R.color.pink
-                                    )
-                                )
-                                layoutDes.background = ColorDrawable(dominantColor)
-                                progressBar.indeterminateDrawable.setColorFilter(
-                                    dominantColor,
-                                    PorterDuff.Mode.SRC_ATOP
-                                )
-                                seekBar.progressDrawable.setColorFilter(
-                                    dominantColor,
-                                    PorterDuff.Mode.SRC_ATOP
-                                )
-                                val red = Color.red(dominantColor)
-                                val green = Color.green(dominantColor)
-                                val blue = Color.blue(dominantColor)
-                                var textColor = 0
-                                if ((red * 0.299 + green * 0.587 + blue * 0.114) > 186) {
-                                    textColor = Color.BLACK
-                                    window?.decorView?.systemUiVisibility =
-                                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                                } else {
-                                    textColor = Color.WHITE
-                                    window?.decorView?.systemUiVisibility = defaultUiVisibility
-                                }
-                                textLyrics.setTextColor(textColor)
-                                imageMore.setColorFilter(
-                                    textColor,
-                                    PorterDuff.Mode.SRC_ATOP
-                                )
-                                listener?.onVideoColorChange(textColor)
-                            }
-                        }
-                    }
-
-                    override fun onLoadCleared(placeholder: Drawable?) {
-                    }
-                })
-        }
-        mediaService?.audioInfo = videoInfo
-        mediaService?.prepareNewDataNew()
-        if (isRepeat) mediaService?.repeatOne() else mediaService?.noRepeat()
-        isPlaying = true
-        displayPlayingState()
-        mediaService?.exoPlayer?.addListener(object : Player.EventListener {
-            override fun onPlaybackStateChanged(state: Int) {
-                super.onPlaybackStateChanged(state)
-                when (state) {
-                    Player.STATE_IDLE -> {
-                    }
-                    Player.STATE_BUFFERING -> {
-                    }
-                    Player.STATE_READY -> {
-                    }
-                    Player.STATE_ENDED -> {
-                        isPlaying = false
-                        displayPauseState()
-                    }
-                }
-            }
-        })
-
+        viewModel.insertRecentNew()
+        viewBinding.progressBar.gone()
+        viewBinding.editLink.text = null
+        listener?.onNewVideoAdded(true)
     }
 
-    private fun setAudioDataRecent(video: Video) {
+    private var currentList = listOf<Video>()
+
+    private fun setAudioDataRecent(video: Video, list: List<Video>) {
+        currentList = list
+        mediaService?.recentVideo = video
+        mediaService?.prepareRecentData(currentList)
+    }
+
+    private fun setupNewVideoViews(video: Video) {
         viewBinding.apply {
             textTitle.text = video.title
             val thumbnail = video.thumbnail
@@ -322,9 +332,7 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
             seekBar.progress = 0
             textProgress.text = getString(R.string.title_zero_progress)
             textDuration.text = getDurationFromMillis(duration)
-            progressBar.gone()
-            viewModel.insertRecentNew()
-            editLink.text = null
+            progressBar.show()
             Glide.with(this@MainActivity)
                 .asBitmap()
                 .load(thumbnail)
@@ -338,7 +346,7 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
                                 val dominantColor = palette.getDominantColor(
                                     ContextCompat.getColor(
                                         this@MainActivity,
-                                        R.color.pink
+                                        R.color.white
                                     )
                                 )
                                 layoutDes.background = ColorDrawable(dominantColor)
@@ -363,7 +371,7 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
                                     window?.decorView?.systemUiVisibility = defaultUiVisibility
                                 }
                                 textLyrics.setTextColor(textColor)
-                                imageMore.setColorFilter(
+                                imageCreatePL.setColorFilter(
                                     textColor,
                                     PorterDuff.Mode.SRC_ATOP
                                 )
@@ -377,28 +385,9 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
                 })
             viewBinding.progressBar.gone()
         }
-        mediaService?.recentVideo = video
-        mediaService?.prepareRecentData()
-        if (isRepeat) mediaService?.repeatOne() else mediaService?.noRepeat()
         isPlaying = true
         displayPlayingState()
-        mediaService?.exoPlayer?.addListener(object : Player.EventListener {
-            override fun onPlaybackStateChanged(state: Int) {
-                super.onPlaybackStateChanged(state)
-                when (state) {
-                    Player.STATE_IDLE -> {
-                    }
-                    Player.STATE_BUFFERING -> {
-                    }
-                    Player.STATE_READY -> {
-                    }
-                    Player.STATE_ENDED -> {
-                        isPlaying = false
-                        displayPauseState()
-                    }
-                }
-            }
-        })
+        mediaService?.setupNewNotification(video)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -423,7 +412,6 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
             if (editLink.text.isNullOrBlank()) return@setOnClickListener
             if (NetworkUtil.isInternetAvailable(this@MainActivity)) {
                 progressBar.show()
-                window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
                 viewBinding.editLink.clearFocus()
                 viewModel.getAudioData(editLink.text.toString())
             } else {
@@ -451,13 +439,30 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
             }
         }
         imageRepeat.setOnClickListener {
-            isRepeat = !isRepeat
             if (isRepeat) {
-                mediaService?.repeatOne()
-                imageRepeat.setImageResource(R.drawable.exo_controls_repeat_one)
+                if (isRepeatAll) {
+                    isRepeat = false
+                    isRepeatAll = false
+                } else {
+                    isRepeatAll = true
+                }
             } else {
-                mediaService?.noRepeat()
-                imageRepeat.setImageResource(R.drawable.exo_controls_repeat_off)
+                isRepeat = true
+                isRepeatAll = false
+            }
+            when {
+                !isRepeat -> {
+                    mediaService?.noRepeat()
+                    imageRepeat.setImageResource(R.drawable.exo_controls_repeat_off)
+                }
+                isRepeatAll -> {
+                    mediaService?.repeatAll()
+                    imageRepeat.setImageResource(R.drawable.exo_controls_repeat_all)
+                }
+                !isRepeatAll -> {
+                    mediaService?.repeatOne()
+                    imageRepeat.setImageResource(R.drawable.exo_controls_repeat_one)
+                }
             }
         }
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -474,8 +479,13 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         })
         imageVideo.setOnClickListener {
             if (mediaService?.recentVideo == null && mediaService?.audioInfo == null) return@setOnClickListener
-            VideoActivity.newInstance(mediaService, this@MainActivity)
-                .show(supportFragmentManager, VideoActivity::class.java.simpleName)
+            VideoFragment.newInstance(mediaService, this@MainActivity)
+                .show(supportFragmentManager, VideoFragment::class.java.simpleName)
+        }
+        imageCreatePL.setOnClickListener {
+            window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+            CreatePLFragment.newInstance(this@MainActivity)
+                .show(supportFragmentManager, CreatePLFragment::class.java.simpleName)
         }
     }
 
@@ -519,18 +529,34 @@ class MainActivity : AppCompatActivity(), VideoActivity.OnVideoStateChange {
         window?.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
     }
 
-    private fun openRecent(item: Video) {
+    private fun openRecent(item: Video, list: List<Video>) {
         if (NetworkUtil.isInternetAvailable(this)) {
             viewBinding.progressBar.show()
             if (item.url == "") {
                 viewModel.getAudioData(item.id)
             } else {
                 viewBinding.progressBar.show()
-                setAudioDataRecent(item)
-//                viewModel.insertRecent(item)
+                setAudioDataRecent(item, list)
             }
         } else {
             Toast.makeText(this, getString(R.string.title_no_internet), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun handleTabChange(pos: Int) {
+//        window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+//        if (pos == 0) showRecentState() else showPLState()
+    }
+
+    private fun showRecentState() = with(viewBinding) {
+        editLink.show()
+        imageAdd.show()
+        imageCreatePL.show()
+    }
+
+    private fun showPLState() = with(viewBinding) {
+        editLink.gone()
+        imageAdd.gone()
+        imageCreatePL.gone()
     }
 }

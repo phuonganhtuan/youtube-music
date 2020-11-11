@@ -14,7 +14,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.YoutubeMusic">
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.main.MainActivity"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -22,7 +22,7 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".MediaService"
+            android:name=".ui.main.MediaService"
             android:enabled="true"
             android:foregroundServiceType="mediaPlayback" />
     </application>

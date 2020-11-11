@@ -1,4 +1,6 @@
-package com.example.youtubemusic.data
+package com.example.youtubemusic.data.repo
+
+import com.example.youtubemusic.data.entity.Video
 
 interface VideoRepo {
 
@@ -6,4 +8,5 @@ interface VideoRepo {
     suspend fun insertRecent(video: Video)
     suspend fun deleteRecent(id: String)
     suspend fun deleteAll()
+    suspend fun getVideosByPL(ids: List<String>): List<Video>
 }

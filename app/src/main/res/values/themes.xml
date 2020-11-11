@@ -14,4 +14,19 @@
         <!-- Customize your theme here. -->
         <item name="android:fontFamily">@font/poppins_pat_vietnamese_medium</item>
     </style>
+
+    <style name="TabTextCustom">
+        <item name="tabTextColor">@android:color/white</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:shadowColor">#40000000</item>
+        <item name="android:shadowRadius">16</item>
+        <item name="android:capitalize">words</item>
+    </style>
+    <style name="TabTextCustomBlack">
+        <item name="tabTextColor">@android:color/black</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:shadowColor">#40000000</item>
+        <item name="android:shadowRadius">16</item>
+        <item name="android:capitalize">words</item>
+    </style>
 </resources>

@@ -31,7 +31,7 @@
                 android:contentDescription="@null"
                 android:foreground="?attr/selectableItemBackground"
                 android:padding="8dp"
-                android:src="@drawable/ic_baseline_clear_24" />
+                android:src="@drawable/ic_baseline_delete_forever_24" />
         </androidx.cardview.widget.CardView>
 
     </FrameLayout>
@@ -50,6 +50,17 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:background="@drawable/bg_grey_trans"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/cardThumbnail"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/cardThumbnail" />
+
+        <View
+            android:id="@+id/viewBgLight"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@drawable/bg_white_trans"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="@id/cardThumbnail"
             app:layout_constraintEnd_toEndOf="parent"

@@ -1,4 +1,4 @@
-package com.example.youtubemusic.data
+package com.example.youtubemusic.data.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity

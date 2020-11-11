@@ -1,4 +1,4 @@
-package com.example.youtubemusic
+package com.example.youtubemusic.ui.main
 
 import android.app.Dialog
 import android.content.DialogInterface
@@ -15,7 +15,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 
-class VideoActivity : BottomSheetDialogFragment() {
+class VideoFragment : BottomSheetDialogFragment() {
 
     private lateinit var viewBinding: ActivityVideoBinding
 
@@ -90,7 +90,7 @@ class VideoActivity : BottomSheetDialogFragment() {
 
     companion object {
         fun newInstance(service: MediaService?, listener: OnVideoStateChange) =
-            VideoActivity().apply {
+            VideoFragment().apply {
                 this.service = service
                 this.listener = listener
             }
