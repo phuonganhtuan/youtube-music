@@ -11,6 +11,7 @@ import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.youtubedl_android.mapper.VideoInfo
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.lang.Exception
@@ -40,7 +41,7 @@ class MainViewModel(
         }
     }
 
-    fun getVideoData(id: String) = viewModelScope.launch {
+    fun getVideoData(id: String): Job = viewModelScope.launch {
         withContext(Dispatchers.IO) {
             try {
                 val request = YoutubeDLRequest(id)
@@ -48,7 +49,7 @@ class MainViewModel(
                 val streamInfo = YoutubeDL.getInstance().getInfo(request)
                 videoData.postValue(streamInfo)
             } catch (e: Exception) {
-                errorMessage.postValue("Please try again!")
+                getVideoData(id)
             }
         }
     }
@@ -69,6 +70,10 @@ class MainViewModel(
                 videoRepo.insertRecent(video)
             }
         }
+    }
+
+    fun updateVideo(video: Video) = viewModelScope.launch {
+        videoRepo.updateVideo(video)
     }
 
     fun insertPL(title: String) = viewModelScope.launch {

@@ -10,7 +10,6 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import android.widget.RemoteViews
 import android.widget.Toast
 import androidx.annotation.IdRes
 import androidx.core.app.NotificationCompat
@@ -23,6 +22,7 @@ import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.SimpleExoPlayer
+import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.yausername.youtubedl_android.mapper.VideoInfo
 
 
@@ -68,96 +68,6 @@ class MediaService : Service() {
                 .build()
         }
 
-    private var recentBitmap: Bitmap? = null
-
-    private var newBitmap: Bitmap? = null
-
-    private val recentNotification
-        get() = run {
-            val channel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                NotificationChannel(
-                    "100111",
-                    "Media Service ", NotificationManager.IMPORTANCE_NONE
-                )
-            } else null
-            val intentOpenApp = Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                this.applicationContext, 23425, intentOpenApp,
-                PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                channel?.let(service::createNotificationChannel)
-            }
-            val notificationLayout =
-                RemoteViews(applicationContext.packageName, R.layout.item_notification_collapsed)
-            notificationLayout.apply {
-                setTextViewText(
-                    R.id.textSongTitle,
-                    recentVideo?.title ?: "No song is being play"
-                )
-                setTextViewText(
-                    R.id.textAuthor,
-                    recentVideo?.author ?: "Author"
-                )
-                setImageViewBitmap(R.id.imageThumb, recentBitmap)
-            }
-            NotificationCompat.Builder(this@MediaService, "100111")
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setSmallIcon(R.drawable.ic_baseline_music_note_24)
-                .setCustomContentView(notificationLayout)
-                .setContentIntent(pendingIntent)
-                .setShowWhen(false)
-                .setOngoing(true)
-                .build()
-        }
-
-    private val newNotification
-        get() = run {
-            val channel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                NotificationChannel(
-                    "100111",
-                    "Media Service ", NotificationManager.IMPORTANCE_NONE
-                )
-            } else null
-            val intentOpenApp = Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                this.applicationContext, 23425, intentOpenApp,
-                PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                channel?.let(service::createNotificationChannel)
-            }
-            val notificationLayout =
-                RemoteViews(applicationContext.packageName, R.layout.item_notification_collapsed)
-            notificationLayout.apply {
-                setTextViewText(
-                    R.id.textSongTitle,
-                    audioInfo?.title ?: "No song is being play"
-                )
-                setTextViewText(R.id.textAuthor, audioInfo?.uploader ?: "Author")
-                setImageViewBitmap(R.id.imageThumb, newBitmap)
-                setOnClickPendingIntent(
-                    R.id.imageAction,
-                    onButtonNotificationClick(R.id.imageAction)
-                )
-            }
-
-            NotificationCompat.Builder(this@MediaService, "100111")
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setSmallIcon(R.drawable.ic_baseline_music_note_24)
-                .setCustomContentView(notificationLayout)
-                .setContentIntent(pendingIntent)
-                .setShowWhen(false)
-                .setOngoing(true)
-                .build()
-        }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_NOT_STICKY
 
     override fun onCreate() {
@@ -193,6 +103,7 @@ class MediaService : Service() {
     var isPreparing = false
 
     fun prepareRecentData(list: List<Video>) {
+        vidList = list
         audioInfo = null
         if (exoPlayer.isPlaying) {
             exoPlayer.stop()
@@ -211,6 +122,28 @@ class MediaService : Service() {
             exoPlayer.play()
         }
         scale = recentVideo!!.scale
+    }
+
+    private var vidList = listOf<Video>()
+
+    fun updateList(list: List<Video>) {
+        vidList = list
+        isPreparing = true
+        if (exoPlayer.isPlaying) {
+            exoPlayer.stop()
+        }
+        val currentProgress = exoPlayer.currentPosition
+        val currentTrackIndex = exoPlayer.currentWindowIndex
+        exoPlayer.clearMediaItems()
+        val items = list.map { video ->
+            MediaItem.fromUri(Uri.parse(video.url))
+        }
+        exoPlayer.setMediaItems(items)
+        exoPlayer.seekTo(currentTrackIndex, C.TIME_UNSET)
+        exoPlayer.seekTo(currentProgress)
+        isPreparing = false
+        exoPlayer.prepare()
+        exoPlayer.play()
     }
 
     fun setupNewNotification(video: Video) {
@@ -240,36 +173,73 @@ class MediaService : Service() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         channel?.let(service::createNotificationChannel)
                     }
-                    val notificationLayout =
-                        RemoteViews(
-                            applicationContext.packageName,
-                            R.layout.item_notification_collapsed
-                        )
-                    notificationLayout.apply {
-                        setTextViewText(
-                            R.id.textSongTitle,
-                            video.title
-                        )
-                        setTextViewText(R.id.textAuthor, video.author)
-                        setImageViewBitmap(R.id.imageThumb, resource)
-                        setOnClickPendingIntent(
-                            R.id.imageAction,
-                            onButtonNotificationClick(R.id.imageAction)
-                        )
+                    val mediaDescriptionAdapter = object : PlayerNotificationManager.MediaDescriptionAdapter {
+
+                        override fun getCurrentContentTitle(player: Player): String {
+                            return vidList[exoPlayer.currentWindowIndex].title
+                        }
+
+                        override fun createCurrentContentIntent(player: Player): PendingIntent? {
+                            return pendingIntent
+                        }
+
+                        override fun getCurrentContentText(player: Player): String {
+                            return vidList[exoPlayer.currentWindowIndex].author
+                        }
+
+                        override fun getCurrentLargeIcon(
+                            player: Player,
+                            callback: PlayerNotificationManager.BitmapCallback
+                        ): Bitmap? {
+                            return resource
+                        }
                     }
 
-                    val noti = NotificationCompat.Builder(this@MediaService, "100111")
-                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                        .setSmallIcon(R.drawable.ic_baseline_music_note_24)
-                        .setCustomContentView(notificationLayout)
-                        .setContentIntent(pendingIntent)
-                        .setShowWhen(false)
-                        .setOngoing(true)
-                        .build()
-                    startForeground(
+                    val playerNotificationManager = PlayerNotificationManager.createWithNotificationChannel(
+                        this@MediaService,
+                        "1001112",
+                        R.string.app_name,
                         100111,
-                        noti
-                    )
+                        mediaDescriptionAdapter,
+                        object : PlayerNotificationManager.NotificationListener {
+                            override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {}
+
+                            override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {}
+                        })
+
+                    playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    playerNotificationManager.setSmallIcon(R.drawable.ic_baseline_music_note_24)
+                    playerNotificationManager.setPlayer(exoPlayer)
+//                    val notificationLayout =
+//                        RemoteViews(
+//                            applicationContext.packageName,
+//                            R.layout.item_notification_collapsed
+//                        )
+//                    notificationLayout.apply {
+//                        setTextViewText(
+//                            R.id.textSongTitle,
+//                            video.title
+//                        )
+//                        setTextViewText(R.id.textAuthor, video.author)
+//                        setImageViewBitmap(R.id.imageThumb, resource)
+//                        setOnClickPendingIntent(
+//                            R.id.imageAction,
+//                            onButtonNotificationClick(R.id.imageAction)
+//                        )
+//                    }
+//
+//                    val noti = NotificationCompat.Builder(this@MediaService, "100111")
+//                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+//                        .setSmallIcon(R.drawable.ic_baseline_music_note_24)
+//                        .setCustomContentView(notificationLayout)
+//                        .setContentIntent(pendingIntent)
+//                        .setShowWhen(false)
+//                        .setOngoing(true)
+//                        .build()
+//                    startForeground(
+//                        100111,
+//                        noti
+//                    )
                 }
 
                 override fun onLoadCleared(placeholder: Drawable?) {

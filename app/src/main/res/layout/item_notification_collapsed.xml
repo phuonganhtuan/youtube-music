@@ -37,7 +37,7 @@
         android:paddingEnd="16dp"
         android:text="This is song title"
         android:textColor="@color/white"
-        android:textSize="14sp" />
+        android:textSize="16sp" />
 
 
     <TextView

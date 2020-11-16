@@ -10,4 +10,5 @@ class VideoRepoImp(private val videoDao: VideoDao) : VideoRepo {
     override suspend fun deleteRecent(id: String) = videoDao.deleteRecent(id)
     override suspend fun deleteAll() = videoDao.deleteAll()
     override suspend fun getVideosByPL(ids: List<String>) = videoDao.getVideosByPL(ids)
+    override suspend fun updateVideo(video: Video) = videoDao.updateVideo(video)
 }

@@ -5,9 +5,11 @@ import android.graphics.PorterDuff
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.youtubemusic.R
@@ -17,13 +19,14 @@ import com.example.youtubemusic.data.entity.Video
 import com.example.youtubemusic.data.repo.PlayListRepoImp
 import com.example.youtubemusic.data.repo.VideoRepoImp
 import com.example.youtubemusic.databinding.FragmentListBinding
+import com.example.youtubemusic.ui.createpl.RenamePLFragment
 import com.example.youtubemusic.ui.main.OnNewVideoPlay
 import com.example.youtubemusic.utils.gone
 import com.example.youtubemusic.utils.show
 import com.google.android.material.tabs.TabLayout
 
 class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
-    AddVideoFragment.OnVideoAdded {
+    AddVideoFragment.OnVideoAdded, RenamePLFragment.OnPLRename {
 
     private val adapter by lazy { RecentAdapter(this) }
     private lateinit var viewBinding: FragmentListBinding
@@ -123,8 +126,17 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
         adapter.notifyDataSetChanged()
     }
 
+    override fun onPLRename(title: String) {
+        val pos = viewBinding.tabPL.selectedTabPosition
+        viewBinding.tabPL.getTabAt(pos)?.text = title
+        val playList = viewModel.playLists.value!![pos - 1]
+        playList.title = title
+        viewModel.updatePL(playList)
+    }
+
     private fun setupViews() = with(viewBinding) {
         recyclerList.adapter = adapter
+        recyclerList.setHasFixedSize(true)
         layoutRecentRefresh.isEnabled = false
         tabPL.tabRippleColor = null
         viewModel.getAllRecent()
@@ -192,6 +204,7 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 val pos = tab?.position ?: 0
                 isRecent = pos == 0
+                if (pos != 0) textCount.show()
                 viewModel.getVideosByPL(pos)
                 onTabChange?.let { it(pos) }
                 adapter.isCurrentPL =
@@ -224,6 +237,44 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
                     .show(it, AddVideoFragment::class.java.simpleName)
             }
         }
+        imageOptions.setOnClickListener {
+            openMenuOptions()
+        }
+    }
+
+    private fun openMenuOptions() {
+        val popupMenu = PopupMenu(requireContext(), viewBinding.imageOptions)
+        popupMenu.gravity = Gravity.END
+        activity?.menuInflater?.inflate(R.menu.menu_media, popupMenu.menu)
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.rename_pl -> {
+                    val pos = viewBinding.tabPL.selectedTabPosition
+                    val title = viewBinding.tabPL.getTabAt(pos)?.text.toString()
+                    RenamePLFragment.newInstance(this, title).show(
+                        activity!!.supportFragmentManager,
+                        RenamePLFragment::class.java.simpleName
+                    )
+                    true
+                }
+                R.id.delete_pl -> {
+                    val pos = viewBinding.tabPL.selectedTabPosition
+                    if (currentPlayingTabIndex == pos) {
+                        currentPlayingSongIndex = -1
+                        adapter.currentPlayingPosition = currentPlayingSongIndex
+                        adapter.notifyDataSetChanged()
+                        onStopPlaying?.let { it() }
+                    }
+                    viewModel.deletePL(viewModel.playLists.value!![pos - 1].id)
+                    viewBinding.tabPL.removeTabAt(pos)
+                    true
+                }
+                else -> {
+                    false
+                }
+            }
+        }
+        popupMenu.show()
     }
 
     companion object {

@@ -84,6 +84,9 @@
                 android:id="@+id/imageOptions"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
                 android:padding="8dp"
                 android:src="@drawable/ic_baseline_more_vert_24"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -103,9 +106,9 @@
             android:textColor="@android:color/white"
             android:textSize="14sp"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="@id/cardAddVideos"
+            app:layout_constraintBottom_toBottomOf="@id/cardOptions"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/cardAddVideos"
+            app:layout_constraintTop_toTopOf="@id/cardOptions"
             app:layout_constraintVertical_bias="1" />
 
         <androidx.cardview.widget.CardView

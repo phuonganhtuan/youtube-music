@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/rename_pl"
+        android:icon="@drawable/ic_baseline_edit_24"
+        android:iconTint="@color/black"
+        android:title="Rename playlist" />
+    <item
+        android:id="@+id/delete_pl"
+        android:icon="@drawable/ic_baseline_delete_forever_24"
+        android:iconTint="@android:color/holo_red_light"
+        android:title="Delete playlist" />
+</menu>

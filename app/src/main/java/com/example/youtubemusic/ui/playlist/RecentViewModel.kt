@@ -59,6 +59,10 @@ class RecentViewModel(
         }
     }
 
+    fun updatePL(playList: PlayList) = viewModelScope.launch {
+        playListRepo.updatePL(playList)
+    }
+
     fun deletePL(id: Int) = viewModelScope.launch {
         playListRepo.deletePL(id)
     }

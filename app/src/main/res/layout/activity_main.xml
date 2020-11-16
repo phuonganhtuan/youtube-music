@@ -142,7 +142,7 @@
         app:layout_constraintBottom_toBottomOf="@id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardPL"/>
+        app:layout_constraintTop_toBottomOf="@id/cardPL" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layoutPlayer"
@@ -240,7 +240,7 @@
             android:id="@+id/imageVideo"
             android:layout_width="42dp"
             android:layout_height="42dp"
-            android:layout_marginStart="56dp"
+            android:layout_marginStart="24dp"
             android:background="@drawable/bg_ripple_black"
             android:contentDescription="@null"
             android:padding="8dp"
@@ -248,6 +248,22 @@
             android:translationZ="36dp"
             app:layout_constraintBottom_toBottomOf="@+id/cardAvatar"
             app:layout_constraintStart_toEndOf="@+id/cardAvatar"
+            app:layout_constraintTop_toTopOf="@id/cardAvatar" />
+
+        <ImageView
+            android:id="@+id/imagePrevious"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/bg_ripple_black"
+            android:contentDescription="@null"
+            android:padding="4dp"
+            android:src="@drawable/exo_controls_previous"
+            android:translationZ="36dp"
+            app:layout_constraintBottom_toBottomOf="@+id/cardAvatar"
+            app:layout_constraintEnd_toStartOf="@id/imagePlayAndPause"
+            app:layout_constraintStart_toEndOf="@+id/imageVideo"
             app:layout_constraintTop_toTopOf="@id/cardAvatar" />
 
         <ImageView
@@ -263,16 +279,33 @@
             app:layout_constraintTop_toTopOf="@id/cardAvatar" />
 
         <ImageView
+            android:id="@+id/imageNext"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="24dp"
+            android:background="@drawable/bg_ripple_black"
+            android:contentDescription="@null"
+            android:padding="4dp"
+            android:src="@drawable/exo_controls_next"
+            android:translationZ="36dp"
+            app:layout_constraintBottom_toBottomOf="@+id/cardAvatar"
+            app:layout_constraintEnd_toStartOf="@id/imageRepeat"
+            app:layout_constraintStart_toEndOf="@+id/imagePlayAndPause"
+            app:layout_constraintTop_toTopOf="@id/cardAvatar" />
+
+        <ImageView
             android:id="@+id/imageRepeat"
             android:layout_width="42dp"
             android:layout_height="42dp"
-            android:layout_marginEnd="56dp"
+            android:layout_marginEnd="24dp"
             android:contentDescription="@null"
             android:padding="8dp"
             android:src="@drawable/exo_controls_repeat_off"
             android:translationZ="36dp"
             app:layout_constraintBottom_toBottomOf="@+id/cardAvatar"
             app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/imageNext"
             app:layout_constraintTop_toTopOf="@id/cardAvatar" />
 
         <TextView

@@ -90,15 +90,28 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                     super.onPlaybackStateChanged(state)
                     when (state) {
                         Player.STATE_IDLE -> {
+                            viewBinding.progressBar.gone()
                         }
                         Player.STATE_BUFFERING -> {
+                            viewBinding.progressBar.show()
                         }
                         Player.STATE_READY -> {
+                            viewBinding.progressBar.gone()
                         }
                         Player.STATE_ENDED -> {
                             isPlaying = false
                             displayPauseState()
                         }
+                    }
+                }
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    super.onIsPlayingChanged(isPlaying)
+                    this@MainActivity.isPlaying = isPlaying
+                    if (isPlaying) {
+                        displayPlayingState()
+                    } else {
+                        displayPauseState()
                     }
                 }
 
@@ -117,8 +130,12 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
 
                 override fun onPlayerError(error: ExoPlaybackException) {
                     super.onPlayerError(error)
-                    Toast.makeText(this@MainActivity, error.message, Toast.LENGTH_SHORT).show()
-                    viewBinding.progressBar.gone()
+                    viewBinding.progressBar.show()
+                    val pos = mediaService?.exoPlayer?.currentWindowIndex
+                    pos?.let {
+                        val video = currentList[pos]
+                        viewModel.getVideoData(video.id)
+                    }
                 }
             })
         }
@@ -131,13 +148,12 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         YoutubeDL.getInstance().init(applicationContext)
         makeStatusBarTransparent()
         setupViews()
-        startMediaService()
         handleEvents()
         observeData()
+        listenToHeadphoneState()
+        startMediaService()
         defaultUiVisibility =
             window?.decorView?.systemUiVisibility ?: View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-        listenToHeadphoneState()
-        cacheDir.deleteRecursively()
     }
 
     override fun onStart() {
@@ -155,6 +171,20 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         disableSeekBarUpdate()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaService?.stopForeground(true)
+    }
+
+    override fun onBackPressed() {
+        if (viewBinding.layoutMainRoot.progress != 0f) {
+            viewBinding.layoutMainRoot.transitionToStart()
+            return
+        }
+        mediaService?.stopForeground(true)
+        exitProcess(0)
+    }
+
     override fun onStateChange() {
         isPlaying = mediaService?.exoPlayer?.isPlaying ?: false
         if (isPlaying) displayPlayingState() else displayPauseState()
@@ -162,7 +192,6 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
 
     override fun onPLCreate(title: String) {
         viewModel.insertPL(title)
-        Toast.makeText(this, "$title created", Toast.LENGTH_SHORT).show()
         listener?.onPLCreated()
     }
 
@@ -193,19 +222,19 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
     }
 
     private fun setupViews() = with(viewBinding) {
-        progressBar.gone()
-        seekBar.gone()
-        textProgress.gone()
-        textDuration.gone()
-        Glide.with(this@MainActivity)
-            .load(R.drawable.bg_2)
-            .apply(bitmapTransform(BlurTransformation(100, 3)))
-            .into(imageBg)
         val fragment = RecentFragment.newInstance(::openRecent, ::handleTabChange, ::onStopPlaying)
         listener = fragment
         supportFragmentManager.beginTransaction()
             .replace(R.id.frameContent, fragment)
             .commit()
+        Glide.with(this@MainActivity)
+            .load(R.drawable.bg_2)
+            .apply(bitmapTransform(BlurTransformation(100, 3)))
+            .into(imageBg)
+        progressBar.gone()
+        seekBar.gone()
+        textProgress.gone()
+        textDuration.gone()
     }
 
     private fun onStopPlaying() {
@@ -217,7 +246,6 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
             textLyrics.text = ""
             layoutDes.background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_black)
             imageAvatar.setImageDrawable(null)
-            progressBar.gone()
             seekBar.gone()
             textProgress.gone()
             textDuration.gone()
@@ -272,6 +300,13 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         videoInfo.observe(this@MainActivity, {
             setAudioDataNew(it)
         })
+        videoData.observe(this@MainActivity, {
+            currentList[mediaService!!.exoPlayer.currentWindowIndex].url = it.url
+            mediaService?.updateList(currentList)
+            val video = currentList[mediaService!!.exoPlayer.currentWindowIndex]
+            video.url = it.url
+            viewModel.updateVideo(video)
+        })
     }
 
     private fun startMediaService() {
@@ -284,22 +319,8 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         bindService(Intent(serviceIntent), serviceConnection, Context.BIND_AUTO_CREATE)
     }
 
-    override fun onDestroy() {
-        mediaService?.stopForeground(true)
-        super.onDestroy()
-    }
-
-    override fun onBackPressed() {
-        if (viewBinding.layoutMainRoot.progress != 0f) {
-            viewBinding.layoutMainRoot.transitionToStart()
-            return
-        }
-        exitProcess(0)
-    }
-
     private fun setAudioDataNew(videoInfo: VideoInfo) {
         viewModel.insertRecentNew()
-        viewBinding.progressBar.gone()
         viewBinding.editLink.text = null
         listener?.onNewVideoAdded(true)
     }
@@ -310,6 +331,8 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         currentList = list
         mediaService?.recentVideo = video
         mediaService?.prepareRecentData(currentList)
+        isPlaying = true
+        displayPlayingState()
     }
 
     private fun setupNewVideoViews(video: Video) {
@@ -332,7 +355,6 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
             seekBar.progress = 0
             textProgress.text = getString(R.string.title_zero_progress)
             textDuration.text = getDurationFromMillis(duration)
-            progressBar.show()
             Glide.with(this@MainActivity)
                 .asBitmap()
                 .load(thumbnail)
@@ -383,10 +405,7 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                     override fun onLoadCleared(placeholder: Drawable?) {
                     }
                 })
-            viewBinding.progressBar.gone()
         }
-        isPlaying = true
-        displayPlayingState()
         mediaService?.setupNewNotification(video)
     }
 
@@ -437,6 +456,18 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                 displayPauseState()
                 mediaService?.pause()
             }
+        }
+        imagePrevious.setOnClickListener {
+            if (mediaService?.recentVideo == null && mediaService?.audioInfo == null) return@setOnClickListener
+            var new = mediaService!!.exoPlayer.currentWindowIndex - 1
+            if (new == -1) new = currentList.size - 1
+            mediaService?.exoPlayer?.seekTo(new, 0)
+        }
+        imageNext.setOnClickListener {
+            if (mediaService?.recentVideo == null && mediaService?.audioInfo == null) return@setOnClickListener
+            var new = mediaService!!.exoPlayer.currentWindowIndex + 1
+            if (new == currentList.size) new = 0
+            mediaService?.exoPlayer?.seekTo(new, 0)
         }
         imageRepeat.setOnClickListener {
             if (isRepeat) {

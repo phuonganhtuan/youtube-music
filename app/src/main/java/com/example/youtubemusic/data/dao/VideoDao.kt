@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy.REPLACE
 import androidx.room.Query
+import androidx.room.Update
 import com.example.youtubemusic.data.entity.Video
 
 @Dao
@@ -23,4 +24,7 @@ interface VideoDao {
 
     @Query("Select * from Video where id in (:ids)")
     suspend fun getVideosByPL(ids: List<String>): List<Video>
+
+    @Update(onConflict = REPLACE)
+    suspend fun updateVideo(video: Video)
 }

@@ -22,6 +22,6 @@ interface PlayListDao {
     @Query("DELETE FROM PlayList")
     suspend fun deleteAllPLs()
 
-    @Update
+    @Update(onConflict = REPLACE)
     suspend fun updatePL(playList: PlayList)
 }

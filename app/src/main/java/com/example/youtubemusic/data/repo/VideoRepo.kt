@@ -9,4 +9,5 @@ interface VideoRepo {
     suspend fun deleteRecent(id: String)
     suspend fun deleteAll()
     suspend fun getVideosByPL(ids: List<String>): List<Video>
+    suspend fun updateVideo(video: Video)
 }
