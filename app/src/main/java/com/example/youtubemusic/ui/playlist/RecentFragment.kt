@@ -3,6 +3,7 @@ package com.example.youtubemusic.ui.playlist
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -12,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
 import com.example.youtubemusic.R
 import com.example.youtubemusic.data.db.AppDatabase
 import com.example.youtubemusic.data.entity.PlayList
@@ -23,7 +25,9 @@ import com.example.youtubemusic.ui.createpl.RenamePLFragment
 import com.example.youtubemusic.ui.main.OnNewVideoPlay
 import com.example.youtubemusic.utils.gone
 import com.example.youtubemusic.utils.show
+import com.example.youtubemusic.utils.toFileName
 import com.google.android.material.tabs.TabLayout
+import java.io.File
 
 class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
     AddVideoFragment.OnVideoAdded, RenamePLFragment.OnPLRename {
@@ -66,9 +70,18 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
 
     override fun onNewVideoAdded(isReset: Boolean) {
         resetPosition = isReset
+        if (viewBinding.tabPL.tabCount == 1) {
+            viewModel.getAllRecent()
+        }
         viewBinding.tabPL.apply {
             Handler(Looper.getMainLooper()).postDelayed(
-                { getTabAt(0)?.select() }, 100
+                {
+                    getTabAt(0)?.select()
+                    adapter.isCurrentPL =
+                        viewBinding.tabPL.selectedTabPosition == currentPlayingTabIndex
+                    adapter.currentPlayingPosition = currentPlayingSongIndex
+                    adapter.notifyDataSetChanged()
+                }, 100
             )
         }
     }
@@ -94,6 +107,16 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
 
     override fun onRecentDelete(position: Int) {
         viewModel.deleteRecent(position)
+        val item = viewModel.recent.value!![position]
+        getDownloadLocation()?.let {
+            if (it.isDirectory) {
+                val deleteFile = it.listFiles()?.toList()
+                    ?.firstOrNull { file -> file.name == item.title.toFileName() + ".mp4" } ?: return
+                if (deleteFile.exists()) {
+                    deleteFile.delete()
+                }
+            }
+        }
     }
 
     override fun onRecentClick(item: Video) {
@@ -134,6 +157,16 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
         viewModel.updatePL(playList)
     }
 
+    private fun getDownloadLocation(): File? {
+        val downloadsDir =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val youtubeDLDir = File(downloadsDir, "YoutubeMusic")
+        if (!youtubeDLDir.exists()) {
+            youtubeDLDir.mkdir()
+        }
+        return youtubeDLDir
+    }
+
     private fun setupViews() = with(viewBinding) {
         recyclerList.adapter = adapter
         recyclerList.setHasFixedSize(true)
@@ -144,7 +177,7 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
     }
 
     private fun observeData() = with(viewModel) {
-        recent.observe(viewLifecycleOwner, {
+        recent.observe(viewLifecycleOwner, Observer {
             viewBinding.textCount.text = "Videos: ${it.size}"
             adapter.list = it.toMutableList()
             adapter.notifyDataSetChanged()
@@ -170,7 +203,7 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
                 }
             }
         })
-        playLists.observe(viewLifecycleOwner, (::setupTabs))
+        playLists.observe(viewLifecycleOwner, Observer(::setupTabs))
     }
 
     private fun setupTabs(pls: List<PlayList>) = with(viewBinding.tabPL) {
@@ -193,6 +226,13 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
             getTabAt(0)?.select()
         }
         isFirstTime = true
+        if (pls.isEmpty()) {
+            viewBinding.apply {
+                cardOptions.gone()
+                cardAddVideos.gone()
+                buttonCreateEmpty.gone()
+            }
+        }
     }
 
     private fun handleEvents() = with(viewBinding) {

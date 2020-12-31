@@ -18,12 +18,14 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.example.youtubemusic.R
 import com.example.youtubemusic.data.entity.Video
+import com.example.youtubemusic.utils.toFileName
 import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.SimpleExoPlayer
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.yausername.youtubedl_android.mapper.VideoInfo
+import java.io.File
 
 
 class MediaService : Service() {
@@ -124,6 +126,29 @@ class MediaService : Service() {
         scale = recentVideo!!.scale
     }
 
+    fun prepareDataFromLocal(listVideo: List<Video>, list: List<File>) {
+        vidList = listVideo
+        audioInfo = null
+        if (exoPlayer.isPlaying) {
+            exoPlayer.stop()
+        }
+        isPreparing = true
+        exoPlayer.clearMediaItems()
+        recentVideo?.let {
+            val listName = list.map { file -> file.name.substring(0, file.name.length - 4) }
+            val index = listName.indexOf(it.title.toFileName())
+            val items = list.map { video ->
+                MediaItem.fromUri(Uri.fromFile(video))
+            }
+            exoPlayer.setMediaItems(items)
+            exoPlayer.seekTo(index, C.TIME_UNSET)
+            isPreparing = false
+            exoPlayer.prepare()
+            exoPlayer.play()
+        }
+        scale = recentVideo!!.scale
+    }
+
     private var vidList = listOf<Video>()
 
     fun updateList(list: List<Video>) {
@@ -173,39 +198,50 @@ class MediaService : Service() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         channel?.let(service::createNotificationChannel)
                     }
-                    val mediaDescriptionAdapter = object : PlayerNotificationManager.MediaDescriptionAdapter {
+                    val mediaDescriptionAdapter =
+                        object : PlayerNotificationManager.MediaDescriptionAdapter {
 
-                        override fun getCurrentContentTitle(player: Player): String {
-                            return vidList[exoPlayer.currentWindowIndex].title
+                            override fun getCurrentContentTitle(player: Player): String {
+                                return vidList[exoPlayer.currentWindowIndex].title
+                            }
+
+                            override fun createCurrentContentIntent(player: Player): PendingIntent? {
+                                return pendingIntent
+                            }
+
+                            override fun getCurrentContentText(player: Player): String {
+                                return vidList[exoPlayer.currentWindowIndex].author
+                            }
+
+                            override fun getCurrentLargeIcon(
+                                player: Player,
+                                callback: PlayerNotificationManager.BitmapCallback
+                            ): Bitmap? {
+                                return resource
+                            }
                         }
 
-                        override fun createCurrentContentIntent(player: Player): PendingIntent? {
-                            return pendingIntent
-                        }
+                    val playerNotificationManager =
+                        PlayerNotificationManager.createWithNotificationChannel(
+                            this@MediaService,
+                            "1001112",
+                            R.string.app_name,
+                            100111,
+                            mediaDescriptionAdapter,
+                            object : PlayerNotificationManager.NotificationListener {
+                                override fun onNotificationPosted(
+                                    notificationId: Int,
+                                    notification: Notification,
+                                    ongoing: Boolean
+                                ) {
+                                }
 
-                        override fun getCurrentContentText(player: Player): String {
-                            return vidList[exoPlayer.currentWindowIndex].author
-                        }
-
-                        override fun getCurrentLargeIcon(
-                            player: Player,
-                            callback: PlayerNotificationManager.BitmapCallback
-                        ): Bitmap? {
-                            return resource
-                        }
-                    }
-
-                    val playerNotificationManager = PlayerNotificationManager.createWithNotificationChannel(
-                        this@MediaService,
-                        "1001112",
-                        R.string.app_name,
-                        100111,
-                        mediaDescriptionAdapter,
-                        object : PlayerNotificationManager.NotificationListener {
-                            override fun onNotificationPosted(notificationId: Int, notification: Notification, ongoing: Boolean) {}
-
-                            override fun onNotificationCancelled(notificationId: Int, dismissedByUser: Boolean) {}
-                        })
+                                override fun onNotificationCancelled(
+                                    notificationId: Int,
+                                    dismissedByUser: Boolean
+                                ) {
+                                }
+                            })
 
                     playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     playerNotificationManager.setSmallIcon(R.drawable.ic_baseline_music_note_24)

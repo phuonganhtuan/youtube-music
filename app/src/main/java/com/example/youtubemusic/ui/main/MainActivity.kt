@@ -1,16 +1,17 @@
 package com.example.youtubemusic.ui.main
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.*
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
-import android.os.Bundle
-import android.os.Handler
-import android.os.IBinder
-import android.os.Looper
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.os.*
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -18,13 +19,14 @@ import android.view.animation.AnimationUtils
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import androidx.palette.graphics.Palette
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions.bitmapTransform
 import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
-import com.example.youtubemusic.*
+import com.example.youtubemusic.R
 import com.example.youtubemusic.data.db.AppDatabase
 import com.example.youtubemusic.data.entity.Video
 import com.example.youtubemusic.data.repo.PlayListRepoImp
@@ -35,15 +37,15 @@ import com.example.youtubemusic.ui.playlist.RecentFragment
 import com.example.youtubemusic.utils.NetworkUtil
 import com.example.youtubemusic.utils.gone
 import com.example.youtubemusic.utils.show
+import com.example.youtubemusic.utils.toFileName
 import com.google.android.exoplayer2.ExoPlaybackException
-import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.source.TrackGroupArray
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray
-import com.yausername.youtubedl_android.YoutubeDL
-import com.yausername.youtubedl_android.YoutubeDLOptions
 import com.yausername.youtubedl_android.mapper.VideoInfo
 import jp.wasabeef.glide.transformations.BlurTransformation
+import java.io.File
+import java.lang.Exception
 import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
@@ -130,6 +132,11 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
 
                 override fun onPlayerError(error: ExoPlaybackException) {
                     super.onPlayerError(error)
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Something occured, trying again ...",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     viewBinding.progressBar.show()
                     val pos = mediaService?.exoPlayer?.currentWindowIndex
                     pos?.let {
@@ -145,7 +152,9 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
-        YoutubeDL.getInstance().init(applicationContext)
+        if (NetworkUtil.isInternetAvailable(this)) {
+            viewModel.updateLib(applicationContext)
+        }
         makeStatusBarTransparent()
         setupViews()
         handleEvents()
@@ -237,6 +246,40 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         textDuration.gone()
     }
 
+    private fun checkAndDownloadAllVideos() {
+        val downloadDir = getDownloadLocation() ?: return
+        if (downloadDir.isDirectory) {
+            val listVideos =
+                downloadDir.listFiles()?.toList()
+            val listVideoName = listVideos?.filter { isValidVideo(it) }
+                ?.map { it.name.substring(0, it.name.length - 4) }
+                ?: return
+            if (listVideoName.isNotEmpty()) {
+                showDownloadingScreen()
+                viewModel.checkAndDownloadVideos(downloadDir, listVideoName)
+            }
+        }
+    }
+
+    private fun showDownloadingScreen() {
+
+    }
+
+    private fun isValidVideo(file: File) = try {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(this, Uri.fromFile(file))
+        val hasVideo = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO)
+        val isValid = "yes" == hasVideo
+        if (isValid) {
+            true
+        } else {
+            file.delete()
+            false
+        }
+    } catch (e: Exception) {
+        false
+    }
+
     private fun onStopPlaying() {
         isPlaying = false
         disableSeekBarUpdate()
@@ -286,7 +329,7 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
     }
 
     private fun observeData() = with(viewModel) {
-        errorMessage.observe(this@MainActivity, {
+        errorMessage.observe(this@MainActivity, androidx.lifecycle.Observer {
             viewBinding.apply {
                 progressBar.gone()
                 if (viewModel.videoInfo.value == null) {
@@ -297,15 +340,23 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
             }
             Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
         })
-        videoInfo.observe(this@MainActivity, {
+        videoInfo.observe(this@MainActivity, androidx.lifecycle.Observer {
             setAudioDataNew(it)
         })
-        videoData.observe(this@MainActivity, {
-            currentList[mediaService!!.exoPlayer.currentWindowIndex].url = it.url
-            mediaService?.updateList(currentList)
-            val video = currentList[mediaService!!.exoPlayer.currentWindowIndex]
-            video.url = it.url
-            viewModel.updateVideo(video)
+//        videoData.observe(this@MainActivity, androidx.lifecycle.Observer {
+//            currentList[mediaService!!.exoPlayer.currentWindowIndex].url = it.url
+//            mediaService?.updateList(currentList)
+//            val video = currentList[mediaService!!.exoPlayer.currentWindowIndex]
+//            video.url = it.url
+//            viewModel.updateVideo(video)
+//        })
+        notificationMessage.observe(this@MainActivity, androidx.lifecycle.Observer {
+            Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
+        })
+        isUpdateDone.observe(this@MainActivity, Observer {
+            if (NetworkUtil.isInternetAvailable(this@MainActivity)) {
+                if (it) checkAndDownloadAllVideos()
+            }
         })
     }
 
@@ -323,16 +374,32 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         viewModel.insertRecentNew()
         viewBinding.editLink.text = null
         listener?.onNewVideoAdded(true)
+        viewBinding.progressBar.gone()
     }
 
     private var currentList = listOf<Video>()
 
     private fun setAudioDataRecent(video: Video, list: List<Video>) {
-        currentList = list
-        mediaService?.recentVideo = video
-        mediaService?.prepareRecentData(currentList)
-        isPlaying = true
-        displayPlayingState()
+        val downloadDir = getDownloadLocation() ?: return
+        val listName = list.map {
+            it.title.toFileName() + ".mp4"
+        }
+        if (downloadDir.isDirectory) {
+            val listVideos =
+                downloadDir.listFiles()?.toList()?.filter { listName.contains(it.name) } ?: return
+            val sortedFiles = mutableListOf<File>()
+            list.forEach {
+                val file = listVideos.firstOrNull { item ->
+                    item.name == it.title.toFileName() + ".mp4"
+                }
+                file?.let { sortedFiles.add(it) }
+            }
+            currentList = list
+            mediaService?.recentVideo = video
+            mediaService?.prepareDataFromLocal(list, sortedFiles)
+            isPlaying = true
+            displayPlayingState()
+        }
     }
 
     private fun setupNewVideoViews(video: Video) {
@@ -361,7 +428,7 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                 .into(object : CustomTarget<Bitmap>() {
                     override fun onResourceReady(
                         resource: Bitmap,
-                        transition: Transition<in Bitmap>?
+                        transition: com.bumptech.glide.request.transition.Transition<in Bitmap>?
                     ) {
                         Palette.Builder(resource).generate {
                             it?.let { palette ->
@@ -433,6 +500,13 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                 progressBar.show()
                 viewBinding.editLink.clearFocus()
                 viewModel.getAudioData(editLink.text.toString())
+                if (isStoragePermissionGranted()) {
+                    getDownloadLocation()?.let {
+                        viewModel.downloadVideo(editLink.text.toString(), it)
+                    }
+                } else {
+//                    imageAdd.performClick()
+                }
             } else {
                 Toast.makeText(
                     this@MainActivity,
@@ -561,17 +635,9 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
     }
 
     private fun openRecent(item: Video, list: List<Video>) {
-        if (NetworkUtil.isInternetAvailable(this)) {
-            viewBinding.progressBar.show()
-            if (item.url == "") {
-                viewModel.getAudioData(item.id)
-            } else {
-                viewBinding.progressBar.show()
-                setAudioDataRecent(item, list)
-            }
-        } else {
-            Toast.makeText(this, getString(R.string.title_no_internet), Toast.LENGTH_SHORT).show()
-        }
+        viewBinding.progressBar.show()
+        viewBinding.progressBar.show()
+        setAudioDataRecent(item, list)
     }
 
     private fun handleTabChange(pos: Int) {
@@ -589,5 +655,30 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         editLink.gone()
         imageAdd.gone()
         imageCreatePL.gone()
+    }
+
+    private fun getDownloadLocation(): File? {
+        val downloadsDir =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val youtubeDLDir = File(downloadsDir, "YoutubeMusic")
+        if (!youtubeDLDir.exists()) {
+            youtubeDLDir.mkdir()
+        }
+        return youtubeDLDir
+    }
+
+    private fun isStoragePermissionGranted() = run {
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            true
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                1
+            )
+            false
+        }
     }
 }
