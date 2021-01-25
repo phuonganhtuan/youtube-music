@@ -45,7 +45,7 @@
         android:contentDescription="@null"
         android:elevation="0dp"
         android:scaleType="centerCrop"
-        android:src="@color/pink"
+        android:src="@color/ic_launcher_background"
         android:translationZ="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -62,77 +62,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardPL"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="36dp"
-        app:cardBackgroundColor="@android:color/transparent"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/imageCreatePL"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:clickable="true"
-            android:contentDescription="@null"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
-            android:src="@drawable/ic_baseline_add_24" />
-    </androidx.cardview.widget.CardView>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layoutAdd"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:animateLayoutChanges="true"
-        android:paddingStart="24dp"
-        android:paddingEnd="0dp"
-        android:paddingBottom="24dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/imageCreatePL"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/imageAdd"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginTop="36dp"
-            android:layout_marginEnd="16dp"
-            android:contentDescription="@null"
-            android:padding="4dp"
-            android:src="@drawable/ic_baseline_search_24"
-            android:translationZ="20dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <EditText
-            android:id="@+id/editLink"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="24dp"
-            android:layout_marginEnd="12dp"
-            android:autofillHints="Video ID"
-            android:background="@drawable/bg_black"
-            android:hint="Video link"
-            android:inputType="text"
-            android:maxLines="1"
-            android:paddingStart="24dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="48dp"
-            android:paddingBottom="4dp"
-            android:textColor="@android:color/white"
-            android:textColorHint="#60ffffff"
-            app:layout_constraintBottom_toBottomOf="@+id/imageAdd"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="1"
-            app:layout_constraintTop_toTopOf="@+id/imageAdd" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
     <FrameLayout
         android:id="@+id/frameContent"
         android:layout_width="0dp"
@@ -142,7 +71,7 @@
         app:layout_constraintBottom_toBottomOf="@id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardPL" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layoutPlayer"
