@@ -86,7 +86,7 @@ class RecentViewModel(
                 else -> {
                     val album = allVideoAbum.value!![albumIndex]
                     val newVideos =
-                        allVideo.filter { title -> title.contains("/$album/") }.shuffled()
+                        allVideo.filter { title -> title.contains("/$album/") }
                     videosLiveData.value = newVideos
                     if (newVideos.isNotEmpty()) {
                         currentVideoAlbumIndex = albumIndex
@@ -132,7 +132,7 @@ class RecentViewModel(
             listOfAllVideos.add(absolutePathOfImage)
         }
         cursor.close()
-        allVideo = listOfAllVideos.shuffled()
+        allVideo = listOfAllVideos
         return allVideo
     }
 }
