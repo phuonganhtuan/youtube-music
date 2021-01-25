@@ -122,7 +122,7 @@ class MainViewModel(
         val allVideos = videoRepo.getRecent()
         val needDownloadVideos = allVideos.filter {
             !names.contains(
-                it.title.toFileName() + ".mp4"
+                it.title.toFileName()
             )
         }
         if (needDownloadVideos.isNotEmpty()) {

@@ -45,7 +45,7 @@
         android:contentDescription="@null"
         android:elevation="0dp"
         android:scaleType="centerCrop"
-        android:src="@color/pink"
+        android:src="#AC194B"
         android:translationZ="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
