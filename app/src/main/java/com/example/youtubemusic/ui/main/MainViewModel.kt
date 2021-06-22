@@ -29,7 +29,7 @@ class MainViewModel(
 
     val videoInfo = MutableLiveData<VideoInfo>()
 
-    val videoData = MutableLiveData<VideoInfo>()
+    private val videoData = MutableLiveData<VideoInfo>()
 
     val errorMessage = MutableLiveData<String>()
 

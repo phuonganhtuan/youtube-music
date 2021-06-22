@@ -56,7 +56,7 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         viewBinding = FragmentListBinding.inflate(inflater)
         return viewBinding.root
     }

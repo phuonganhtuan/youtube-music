@@ -343,13 +343,6 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         videoInfo.observe(this@MainActivity, androidx.lifecycle.Observer {
             setAudioDataNew(it)
         })
-//        videoData.observe(this@MainActivity, androidx.lifecycle.Observer {
-//            currentList[mediaService!!.exoPlayer.currentWindowIndex].url = it.url
-//            mediaService?.updateList(currentList)
-//            val video = currentList[mediaService!!.exoPlayer.currentWindowIndex]
-//            video.url = it.url
-//            viewModel.updateVideo(video)
-//        })
         notificationMessage.observe(this@MainActivity, androidx.lifecycle.Observer {
             Toast.makeText(this@MainActivity, it, Toast.LENGTH_SHORT).show()
         })
@@ -504,8 +497,6 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                     getDownloadLocation()?.let {
                         viewModel.downloadVideo(editLink.text.toString(), it)
                     }
-                } else {
-//                    imageAdd.performClick()
                 }
             } else {
                 Toast.makeText(
@@ -641,8 +632,6 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
     }
 
     private fun handleTabChange(pos: Int) {
-//        window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-//        if (pos == 0) showRecentState() else showPLState()
     }
 
     private fun showRecentState() = with(viewBinding) {
