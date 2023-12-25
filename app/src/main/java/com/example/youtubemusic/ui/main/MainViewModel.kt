@@ -68,13 +68,13 @@ class MainViewModel(
         videoInfo.value?.let {
             val video = Video(
                 id = "https://youtu.be/${it.id}",
-                title = it.fulltitle,
-                thumbnail = it.thumbnails[2].url,
-                url = it.url,
-                description = it.description,
+                title = it.fulltitle ?: "",
+                thumbnail = it.thumbnails?.get(2)?.url ?: "",
+                url = it.url ?: "",
+                description = it.description ?: "",
                 duration = it.duration,
                 scale = it.width / it.height.toFloat(),
-                author = it.uploader
+                author = it.uploader ?: ""
             )
             withContext(Dispatchers.IO) {
                 videoRepo.insertRecent(video)
@@ -89,7 +89,7 @@ class MainViewModel(
 //            request.addOption("--extract-audio")
 //            request.addOption("--audio-format", "mp3")
             try {
-                YoutubeDL.getInstance().execute(request) { progress, _ ->
+                YoutubeDL.getInstance().execute(request) { progress, _, _ ->
                     notificationMessage.postValue("Downloading $name: $progress%")
                 }
             } catch (e: YoutubeDLException) {

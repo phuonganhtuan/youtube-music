@@ -39,7 +39,9 @@ import com.example.youtubemusic.utils.gone
 import com.example.youtubemusic.utils.show
 import com.example.youtubemusic.utils.toFileName
 import com.google.android.exoplayer2.ExoPlaybackException
+import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.Tracks
 import com.google.android.exoplayer2.source.TrackGroupArray
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray
 import com.yausername.youtubedl_android.mapper.VideoInfo
@@ -87,7 +89,7 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? MediaService.LocalBinder
             mediaService = binder?.service
-            mediaService?.exoPlayer?.addListener(object : Player.EventListener {
+            mediaService?.exoPlayer?.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
                     super.onPlaybackStateChanged(state)
                     when (state) {
@@ -117,11 +119,8 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                     }
                 }
 
-                override fun onTracksChanged(
-                    trackGroups: TrackGroupArray,
-                    trackSelections: TrackSelectionArray
-                ) {
-                    super.onTracksChanged(trackGroups, trackSelections)
+                override fun onTracksChanged(tracks: Tracks) {
+                    super.onTracksChanged(tracks)
                     if (mediaService!!.audioInfo == null && mediaService!!.recentVideo == null) return
                     if (mediaService!!.isPreparing) return
                     val pos = mediaService?.exoPlayer?.currentWindowIndex ?: 0
@@ -130,7 +129,7 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                     listener?.onNewTrackPlay(pos)
                 }
 
-                override fun onPlayerError(error: ExoPlaybackException) {
+                override fun onPlayerError(error: PlaybackException) {
                     super.onPlayerError(error)
                     Toast.makeText(
                         this@MainActivity,
@@ -493,11 +492,9 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
                 progressBar.show()
                 viewBinding.editLink.clearFocus()
                 viewModel.getAudioData(editLink.text.toString())
-                if (isStoragePermissionGranted()) {
                     getDownloadLocation()?.let {
                         viewModel.downloadVideo(editLink.text.toString(), it)
                     }
-                }
             } else {
                 Toast.makeText(
                     this@MainActivity,
@@ -648,7 +645,7 @@ class MainActivity : AppCompatActivity(), VideoFragment.OnVideoStateChange,
 
     private fun getDownloadLocation(): File? {
         val downloadsDir =
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            getExternalFilesDir(null)
         val youtubeDLDir = File(downloadsDir, "YoutubeMusic")
         if (!youtubeDLDir.exists()) {
             youtubeDLDir.mkdir()

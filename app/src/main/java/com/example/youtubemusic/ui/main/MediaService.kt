@@ -1,6 +1,7 @@
 package com.example.youtubemusic.ui.main
 
 import android.app.*
+import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -53,7 +54,7 @@ class MediaService : Service() {
             }
             val pendingIntent = PendingIntent.getActivity(
                 this.applicationContext, 23425, intentOpenApp,
-                PendingIntent.FLAG_UPDATE_CURRENT
+                PendingIntent.FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
             )
             val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -91,7 +92,7 @@ class MediaService : Service() {
     private fun onButtonNotificationClick(@IdRes id: Int): PendingIntent? {
         val intent = Intent(ACTION_NOTIFICATION_BUTTON_CLICK)
         intent.putExtra(EXTRA_BUTTON_CLICKED, id)
-        return PendingIntent.getBroadcast(this, id, intent, 0)
+        return PendingIntent.getBroadcast(this, id, intent,  FLAG_IMMUTABLE)
     }
 
     private val receiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -191,7 +192,7 @@ class MediaService : Service() {
                     }
                     val pendingIntent = PendingIntent.getActivity(
                         this@MediaService.applicationContext, 23425, intentOpenApp,
-                        PendingIntent.FLAG_UPDATE_CURRENT
+                        PendingIntent.FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
                     )
                     val service =
                         getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -221,14 +222,13 @@ class MediaService : Service() {
                             }
                         }
 
-                    val playerNotificationManager =
-                        PlayerNotificationManager.createWithNotificationChannel(
-                            this@MediaService,
-                            "1001112",
-                            R.string.app_name,
-                            100111,
-                            mediaDescriptionAdapter,
-                            object : PlayerNotificationManager.NotificationListener {
+                    val playerNotificationManager = PlayerNotificationManager.Builder(
+                        this@MediaService,
+                        1001112, "100111")
+                            .setChannelNameResourceId(R.string.app_name)
+                            .setChannelDescriptionResourceId(R.string.app_name)
+                            .setMediaDescriptionAdapter(mediaDescriptionAdapter)
+                            .setNotificationListener(  object : PlayerNotificationManager.NotificationListener {
                                 override fun onNotificationPosted(
                                     notificationId: Int,
                                     notification: Notification,
@@ -242,6 +242,7 @@ class MediaService : Service() {
                                 ) {
                                 }
                             })
+                            .build()
 
                     playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     playerNotificationManager.setSmallIcon(R.drawable.ic_baseline_music_note_24)

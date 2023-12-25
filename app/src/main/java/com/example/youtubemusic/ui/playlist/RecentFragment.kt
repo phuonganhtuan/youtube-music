@@ -159,7 +159,7 @@ class RecentFragment : Fragment(), OnNewVideoPlay, RecentAdapter.OnRecentClick,
 
     private fun getDownloadLocation(): File? {
         val downloadsDir =
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            requireContext().getExternalFilesDir(null)
         val youtubeDLDir = File(downloadsDir, "YoutubeMusic")
         if (!youtubeDLDir.exists()) {
             youtubeDLDir.mkdir()

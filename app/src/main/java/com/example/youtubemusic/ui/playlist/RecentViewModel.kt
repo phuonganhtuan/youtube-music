@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import java.lang.Exception
 
 class RecentViewModel(
     private val videoRepo: VideoRepo,
@@ -53,9 +54,14 @@ class RecentViewModel(
     fun addVideosToPL(pos: Int, ids: List<String>) {
         viewModelScope.launch {
             val elements = ids.joinToString("*")
-            playLists.value!![pos].elements = elements
-            playListRepo.updatePL(playLists.value!![pos])
-            recent.value = videoRepo.getVideosByPL(ids)
+            try {
+                playLists.value!![pos].elements = elements
+                playListRepo.updatePL(playLists.value!![pos])
+                recent.value = videoRepo.getVideosByPL(ids)
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+            }
+
         }
     }
 

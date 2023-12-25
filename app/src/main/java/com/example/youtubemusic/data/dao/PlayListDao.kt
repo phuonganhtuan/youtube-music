@@ -2,7 +2,7 @@ package com.example.youtubemusic.data.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy.REPLACE
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.youtubemusic.data.entity.PlayList
@@ -13,7 +13,7 @@ interface PlayListDao {
     @Query("Select * from PlayList")
     suspend fun getAllPLs(): List<PlayList>
 
-    @Insert(onConflict = REPLACE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPL(playList: PlayList)
 
     @Query("DELETE FROM PlayList WHERE id = :id")
@@ -22,6 +22,6 @@ interface PlayListDao {
     @Query("DELETE FROM PlayList")
     suspend fun deleteAllPLs()
 
-    @Update(onConflict = REPLACE)
+    @Update(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updatePL(playList: PlayList)
 }
